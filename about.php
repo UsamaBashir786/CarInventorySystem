@@ -92,7 +92,7 @@
           <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Inventory</a>
           <a href="about.php" class="text-indigo-600 font-medium">About Us</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
+          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
         </div>
 
         <!-- CTA Buttons -->
@@ -125,7 +125,7 @@
           <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
           <a href="about.php" class="text-indigo-600 font-medium py-2">About Us</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
+          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
@@ -588,7 +588,7 @@
                 <a href="index.php" class="bg-white text-indigo-600 hover:bg-gray-100 transition-colors font-medium px-6 py-3 rounded-lg text-center">
                   Browse Inventory
                 </a>
-                <a href="#" class="bg-transparent border border-white text-white hover:bg-white/10 transition-colors px-6 py-3 rounded-lg text-center">
+                <a href="contact.php" class="bg-transparent border border-white text-white hover:bg-white/10 transition-colors px-6 py-3 rounded-lg text-center">
                   Contact Us
                 </a>
               </div>

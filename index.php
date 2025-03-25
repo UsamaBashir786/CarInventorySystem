@@ -137,7 +137,7 @@
         <div class="hidden md:flex items-center space-x-6">
           <a href="#" class="text-indigo-600 font-medium">Home</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Inventory</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">About Us</a>
+          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors">About Us</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
           <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
         </div>
@@ -168,9 +168,9 @@
       <!-- Mobile menu -->
       <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
         <div class="flex flex-col space-y-2">
-          <a href="#" class="text-indigo-600 font-medium py-2">Home</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">About Us</a>
+          <a href="index.php" class="text-indigo-600 font-medium py-2">Home</a>
+          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
+          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">About Us</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
           <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">

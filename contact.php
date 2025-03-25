@@ -1,5 +1,6 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,8 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-    body, html {
+    body,
+    html {
       font-family: 'Poppins', sans-serif;
       scroll-behavior: smooth;
     }
@@ -22,16 +24,16 @@
       transform: translateY(-5px);
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     }
-    
+
     .bg-gradient {
       background: linear-gradient(to right, #4f46e5, #8b5cf6);
     }
-    
+
     .form-input:focus {
       border-color: #4f46e5;
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
     }
-    
+
     .map-container {
       height: 450px;
       filter: grayscale(40%);
@@ -39,7 +41,7 @@
       overflow: hidden;
       z-index: 10;
     }
-    
+
     /* Custom input styles */
     .input-icon {
       position: absolute;
@@ -53,18 +55,26 @@
       transition: all 0.3s;
       padding-left: 2.5rem;
     }
-    
+
     /* Success message animation */
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    
+
     .success-message {
       animation: fadeIn 0.6s ease-out forwards;
     }
   </style>
 </head>
+
 <body class="bg-gray-50">
   <!-- Top Navigation -->
   <header class="bg-white shadow-sm sticky top-0 z-30">
@@ -78,7 +88,7 @@
           </svg>
           <h1 class="text-xl font-bold text-gray-800">CentralAutogy</h1>
         </div>
-        
+
         <!-- Navigation links - Desktop -->
         <div class="hidden md:flex items-center space-x-6">
           <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Home</a>
@@ -87,7 +97,7 @@
           <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
           <a href="contact.php" class="text-indigo-600 font-medium">Contact</a>
         </div>
-        
+
         <!-- CTA Buttons -->
         <div class="flex items-center space-x-3">
           <a href="#" class="hidden sm:block text-gray-600 hover:text-indigo-600 transition-colors">
@@ -101,7 +111,7 @@
           <a href="login.php" class="hidden sm:block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
             Login
           </a>
-          
+
           <!-- Mobile menu button -->
           <button id="mobileMenuBtn" class="md:hidden text-gray-600 hover:text-indigo-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,7 +120,7 @@
           </button>
         </div>
       </div>
-      
+
       <!-- Mobile menu -->
       <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
         <div class="flex flex-col space-y-2">
@@ -146,7 +156,7 @@
         </div>
       </div>
     </section>
-    
+
     <!-- Contact Info Cards -->
     <section class="py-16 bg-white">
       <div class="container mx-auto px-4">
@@ -171,7 +181,7 @@
               </svg>
             </a>
           </div>
-          
+
           <!-- Call Us Card -->
           <div class="contact-card bg-gray-50 p-8 text-center">
             <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -192,7 +202,7 @@
               </svg>
             </a>
           </div>
-          
+
           <!-- Email Us Card -->
           <div class="contact-card bg-gray-50 p-8 text-center">
             <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -217,7 +227,7 @@
         </div>
       </div>
     </section>
-    
+
     <!-- Business Hours -->
     <section class="py-16 bg-gray-50">
       <div class="container mx-auto px-4">
@@ -225,7 +235,7 @@
           <h2 class="text-3xl font-bold text-gray-800 mb-4">Business Hours</h2>
           <p class="text-gray-600 max-w-3xl mx-auto">Visit us during the following hours or schedule an appointment for a personalized experience.</p>
         </div>
-        
+
         <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
           <div class="grid grid-cols-1 md:grid-cols-2">
             <div class="p-6 md:p-8">
@@ -245,7 +255,7 @@
                 </li>
               </ul>
             </div>
-            
+
             <div class="p-6 md:p-8 bg-gray-50">
               <h3 class="text-xl font-bold text-gray-800 mb-4">Service Center</h3>
               <ul class="space-y-3">
@@ -264,7 +274,7 @@
               </ul>
             </div>
           </div>
-          
+
           <div class="bg-indigo-50 p-6 text-center">
             <p class="text-indigo-800">
               <span class="font-medium">Note:</span> Extended hours are available by appointment. Contact us to schedule a visit outside regular business hours.
@@ -273,7 +283,7 @@
         </div>
       </div>
     </section>
-    
+
     <!-- Contact Form & Map -->
     <section class="py-16 bg-white">
       <div class="container mx-auto px-4">
@@ -281,14 +291,14 @@
           <h2 class="text-3xl font-bold text-gray-800 mb-4">Get in Touch</h2>
           <p class="text-gray-600 max-w-3xl mx-auto">Have a question or interested in a specific vehicle? Fill out the form below and our team will get back to you as soon as possible.</p>
         </div>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           <!-- Contact Form -->
           <div class="bg-gray-50 rounded-xl p-6 md:p-8 shadow-sm">
             <form id="contactForm" class="space-y-6">
               <h3 class="text-xl font-bold text-gray-800 mb-2">Send Us a Message</h3>
               <p class="text-gray-600 text-sm mb-6">All fields marked with an asterisk (*) are required</p>
-              
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
@@ -301,7 +311,7 @@
                     <input type="text" id="firstName" name="firstName" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none" required>
                   </div>
                 </div>
-                
+
                 <div>
                   <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                   <div class="relative">
@@ -314,7 +324,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                 <div class="relative">
@@ -327,7 +337,7 @@
                   <input type="email" id="email" name="email" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none" required>
                 </div>
               </div>
-              
+
               <div>
                 <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                 <div class="relative">
@@ -339,7 +349,7 @@
                   <input type="tel" id="phone" name="phone" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none">
                 </div>
               </div>
-              
+
               <div>
                 <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
                 <div class="relative">
@@ -359,19 +369,19 @@
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Message *</label>
                 <textarea id="message" name="message" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required></textarea>
               </div>
-              
+
               <div class="flex items-start">
                 <input type="checkbox" id="privacy" name="privacy" class="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" required>
                 <label for="privacy" class="ml-2 block text-sm text-gray-600">
                   I agree to the <a href="#" class="text-indigo-600 hover:text-indigo-700">Privacy Policy</a> and consent to having this website store my submitted information.
                 </label>
               </div>
-              
+
               <div>
                 <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-md flex items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -381,7 +391,7 @@
                 </button>
               </div>
             </form>
-            
+
             <!-- Success Message (hidden by default) -->
             <div id="successMessage" class="hidden text-center p-6 success-message">
               <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -394,7 +404,243 @@
               <button id="sendAnotherBtn" class="mt-4 text-indigo-600 font-medium hover:text-indigo-700 transition-colors">Send Another Message</button>
             </div>
           </div>
-          
+
           <!-- Map -->
           <div class="map-container shadow-sm">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215!4d-73.987!3d40.748!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQ0JzUyLjgiTiA3M8KwNTknMTMuMiJX!5e0!3m2!1sen!2sus!4v1620256358021!5m2!1sen!2sus" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-16 bg-gray-50">
+      <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
+          <p class="text-gray-600 max-w-3xl mx-auto">Find answers to common questions about our services, financing options, and buying process.</p>
+        </div>
+
+        <div class="max-w-4xl mx-auto">
+          <!-- Question 1 -->
+          <div class="mb-6 bg-white rounded-xl shadow-sm overflow-hidden">
+            <button class="faq-toggle w-full flex justify-between items-center p-6 text-left">
+              <h3 class="font-medium text-gray-800 text-lg">What do I need to bring when purchasing a vehicle?</h3>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 faq-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="faq-content hidden px-6 pb-6">
+              <p class="text-gray-600">When purchasing a vehicle, please bring the following items:</p>
+              <ul class="list-disc pl-5 mt-2 text-gray-600 space-y-1">
+                <li>Valid driver's license</li>
+                <li>Proof of insurance</li>
+                <li>Method of payment (cash, pre-approved loan, etc.)</li>
+                <li>Trade-in vehicle (if applicable) along with its title and registration</li>
+                <li>Down payment (if required by your financing arrangement)</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Question 2 -->
+          <div class="mb-6 bg-white rounded-xl shadow-sm overflow-hidden">
+            <button class="faq-toggle w-full flex justify-between items-center p-6 text-left">
+              <h3 class="font-medium text-gray-800 text-lg">Do you offer financing options?</h3>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 faq-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="faq-content hidden px-6 pb-6">
+              <p class="text-gray-600">Yes, we offer various financing options to help you purchase your vehicle. We work with multiple financial institutions to ensure you get the best possible rate and terms. Our finance team can help you explore options based on your credit situation, down payment amount, and budget. We offer both traditional auto loans and lease options for qualified buyers.</p>
+            </div>
+          </div>
+
+          <!-- Question 3 -->
+          <div class="mb-6 bg-white rounded-xl shadow-sm overflow-hidden">
+            <button class="faq-toggle w-full flex justify-between items-center p-6 text-left">
+              <h3 class="font-medium text-gray-800 text-lg">Can I schedule a test drive online?</h3>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 faq-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="faq-content hidden px-6 pb-6">
+              <p class="text-gray-600">Absolutely! You can schedule a test drive online by visiting our inventory page, selecting the vehicle you're interested in, and clicking the "Schedule Test Drive" button. You can also contact us directly through the form on this page or call our sales department to arrange a convenient time. We recommend scheduling at least 24 hours in advance to ensure the vehicle is ready for you when you arrive.</p>
+            </div>
+          </div>
+
+          <!-- Question 4 -->
+          <div class="mb-6 bg-white rounded-xl shadow-sm overflow-hidden">
+            <button class="faq-toggle w-full flex justify-between items-center p-6 text-left">
+              <h3 class="font-medium text-gray-800 text-lg">What warranty coverage do your vehicles have?</h3>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 faq-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="faq-content hidden px-6 pb-6">
+              <p class="text-gray-600">Warranty coverage varies depending on the vehicle:</p>
+              <ul class="list-disc pl-5 mt-2 text-gray-600 space-y-1">
+                <li>New vehicles typically come with the manufacturer's warranty</li>
+                <li>Most of our pre-owned vehicles come with a limited warranty</li>
+                <li>Certified pre-owned vehicles include extended warranty coverage</li>
+                <li>Additional warranty and protection plans are available for purchase</li>
+              </ul>
+              <p class="mt-2 text-gray-600">Our sales team can provide specific warranty information for any vehicle you're interested in purchasing.</p>
+            </div>
+          </div>
+
+          <!-- Question 5 -->
+          <div class="mb-6 bg-white rounded-xl shadow-sm overflow-hidden">
+            <button class="faq-toggle w-full flex justify-between items-center p-6 text-left">
+              <h3 class="font-medium text-gray-800 text-lg">Do you buy used vehicles?</h3>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 faq-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="faq-content hidden px-6 pb-6">
+              <p class="text-gray-600">Yes, we purchase quality used vehicles. If you're looking to sell your car, you can bring it to our dealership for an appraisal. Our team will evaluate your vehicle and make you a competitive offer based on its condition, age, mileage, and market value. We also accept trade-ins toward the purchase of another vehicle, which may offer tax advantages in some situations.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white pt-12 pb-8">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- Company Info -->
+        <div>
+          <div class="flex items-center space-x-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+              <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
+            </svg>
+            <h3 class="text-lg font-bold">CentralAutogy</h3>
+          </div>
+          <p class="text-gray-400 mb-4">Your one-stop destination for finding the perfect vehicle. We provide a wide selection of high-quality cars at competitive prices.</p>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+          <ul class="space-y-2">
+            <li><a href="index.php" class="text-gray-400 hover:text-white transition-colors">Home</a></li>
+            <li><a href="index.php" class="text-gray-400 hover:text-white transition-colors">Browse Inventory</a></li>
+            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Financing Options</a></li>
+            <li><a href="about.php" class="text-gray-400 hover:text-white transition-colors">About Us</a></li>
+            <li><a href="contact.php" class="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
+            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact Info -->
+        <div>
+          <h4 class="text-lg font-semibold mb-4">Contact Us</h4>
+          <ul class="space-y-3">
+            <li class="flex items-start">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+              </svg>
+              <span class="text-gray-400">1234 Auto Lane, Car City, ST 12345</span>
+            </li>
+            <li class="flex items-start">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 7V3z" />
+              </svg>
+              <span class="text-gray-400">(555) 123-4567</span>
+            </li>
+            <li class="flex items-start">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+              </svg>
+              <span class="text-gray-400">info@centralautogy.com</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Newsletter -->
+        <div>
+          <h4 class="text-lg font-semibold mb-4">Newsletter</h4>
+          <p class="text-gray-400 mb-4">Subscribe to our newsletter for the latest updates on new inventory and special offers.</p>
+          <form class="mb-2">
+            <div class="flex">
+              <input type="email" placeholder="Your email address" class="px-4 py-2 w-full rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-r-lg text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </form>
+          <p class="text-xs text-gray-500">We respect your privacy. Unsubscribe at any time.</p>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-700 mt-10 pt-6">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <p class="text-gray-400 text-sm">&copy; 2023 CentralAutogy. All rights reserved.</p>
+          <div class="mt-4 md:mt-0">
+            <div class="flex space-x-4">
+              <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</a>
+              <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</a>
+              <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors">Cookie Policy</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    mobileMenuBtn.addEventListener('click', function() {
+      mobileMenu.classList.toggle('hidden');
+    });
+
+    // Contact form submission
+    const contactForm = document.getElementById('contactForm');
+    const successMessage = document.getElementById('successMessage');
+    const sendAnotherBtn = document.getElementById('sendAnotherBtn');
+
+    contactForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // In a real application, you would send the form data to the server here
+      // For demo purposes, we'll just show the success message
+      contactForm.classList.add('hidden');
+      successMessage.classList.remove('hidden');
+    });
+
+    sendAnotherBtn.addEventListener('click', function() {
+      contactForm.reset();
+      successMessage.classList.add('hidden');
+      contactForm.classList.remove('hidden');
+    });
+
+    // FAQ toggles
+    const faqToggles = document.querySelectorAll('.faq-toggle');
+
+    faqToggles.forEach(toggle => {
+      toggle.addEventListener('click', function() {
+        const content = this.nextElementSibling;
+        const icon = this.querySelector('.faq-icon');
+
+        content.classList.toggle('hidden');
+
+        // Rotate icon when expanded
+        if (content.classList.contains('hidden')) {
+          icon.style.transform = 'rotate(0deg)';
+        } else {
+          icon.style.transform = 'rotate(180deg)';
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
