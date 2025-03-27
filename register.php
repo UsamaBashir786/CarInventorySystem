@@ -1,3 +1,151 @@
+<?php
+// Include database configuration
+require_once 'config/db.php';
+
+// Initialize variables for form data and errors
+$firstName = $lastName = $email = $phone = $password = $confirmPassword = "";
+$firstNameErr = $lastNameErr = $emailErr = $phoneErr = $passwordErr = $confirmPasswordErr = $termsErr = "";
+$registrationSuccess = false;
+$registrationError = "";
+
+// Process form data when form is submitted
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  // Validate first name
+  if (empty($_POST["firstName"])) {
+    $firstNameErr = "First name is required";
+  } else {
+    $firstName = test_input($_POST["firstName"]);
+    // Check if name only contains letters and whitespace
+    if (!preg_match("/^[a-zA-Z ]*$/", $firstName)) {
+      $firstNameErr = "Only letters and white space allowed";
+    }
+  }
+
+  // Validate last name
+  if (empty($_POST["lastName"])) {
+    $lastNameErr = "Last name is required";
+  } else {
+    $lastName = test_input($_POST["lastName"]);
+    // Check if name only contains letters and whitespace
+    if (!preg_match("/^[a-zA-Z ]*$/", $lastName)) {
+      $lastNameErr = "Only letters and white space allowed";
+    }
+  }
+
+  // Validate email
+  if (empty($_POST["email"])) {
+    $emailErr = "Email is required";
+  } else {
+    $email = test_input($_POST["email"]);
+    // Check if email is valid
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      $emailErr = "Invalid email format";
+    } else {
+      // Check if email already exists in the database
+      $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+      $stmt->bind_param("s", $email);
+      $stmt->execute();
+      $result = $stmt->get_result();
+      if ($result->num_rows > 0) {
+        $emailErr = "Email already exists. Please use a different email or login.";
+      }
+      $stmt->close();
+    }
+  }
+
+  // Validate phone
+  if (empty($_POST["phone"])) {
+    $phoneErr = "Phone number is required";
+  } else {
+    $phone = test_input($_POST["phone"]);
+    // Check if phone number is valid (simple validation)
+    if (!preg_match("/^[0-9]{10,15}$/", str_replace(['-', '(', ')', ' '], '', $phone))) {
+      $phoneErr = "Invalid phone number format";
+    }
+  }
+
+  // Validate password
+  if (empty($_POST["password"])) {
+    $passwordErr = "Password is required";
+  } else {
+    $password = test_input($_POST["password"]);
+    // Check if password is strong enough
+    if (strlen($password) < 8) {
+      $passwordErr = "Password must be at least 8 characters long";
+    }
+  }
+
+  // Validate confirm password
+  if (empty($_POST["confirmPassword"])) {
+    $confirmPasswordErr = "Please confirm your password";
+  } else {
+    $confirmPassword = test_input($_POST["confirmPassword"]);
+    // Check if passwords match
+    if ($password != $confirmPassword) {
+      $confirmPasswordErr = "Passwords don't match";
+    }
+  }
+
+  // Validate terms agreement
+  if (!isset($_POST["terms"]) || $_POST["terms"] != "on") {
+    $termsErr = "You must agree to the Terms of Service and Privacy Policy";
+  }
+
+  // Check marketing preference
+  $marketingPreference = isset($_POST["marketing"]) ? 1 : 0;
+
+  // If no errors, proceed with registration
+  if (
+    empty($firstNameErr) && empty($lastNameErr) && empty($emailErr) && empty($phoneErr) &&
+    empty($passwordErr) && empty($confirmPasswordErr) && empty($termsErr)
+  ) {
+
+    // Hash the password
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    // Current date for registration timestamp
+    $registrationDate = date('Y-m-d H:i:s');
+
+    // Prepare an insert statement
+    $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, phone, password, marketing_consent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssss", $firstName, $lastName, $email, $phone, $hashedPassword, $marketingPreference, $registrationDate);
+
+    // Attempt to execute the prepared statement
+    if ($stmt->execute()) {
+      $registrationSuccess = true;
+
+      // Optional: Start a session and set session variables
+      session_start();
+      $_SESSION["user_id"] = $stmt->insert_id;
+      $_SESSION["first_name"] = $firstName;
+      $_SESSION["last_name"] = $lastName;
+      $_SESSION["email"] = $email;
+
+      // Redirect to success page or login page
+      header("location: login.php?registered=true");
+      exit();
+    } else {
+      $registrationError = "Something went wrong. Please try again later.";
+    }
+
+    // Close statement
+    $stmt->close();
+  }
+}
+
+// Function to sanitize form data
+function test_input($data)
+{
+  $data = trim($data);
+  $data = stripslashes($data);
+  $data = htmlspecialchars($data);
+  return $data;
+}
+
+// Include HTML header and content
+// The HTML form will be displayed if no submission has occurred or if there were errors
+// The success message will be shown if registration was successful
+?>
 <!doctype html>
 <html>
 
@@ -6,165 +154,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
   <title>Register - CentralAutogy</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-
-    body,
-    html {
-      font-family: 'Poppins', sans-serif;
-      height: 100%;
-      background-color: #f9fafb;
-    }
-
-    .register-card {
-      margin-top: 450px;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-      overflow: hidden;
-    }
-
-    .bg-car {
-      background-image: url('https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
-      background-size: cover;
-      background-position: center;
-    }
-
-    .input-group {
-      position: relative;
-    }
-
-    .input-icon {
-      position: absolute;
-      left: 0.75rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #94a3b8;
-    }
-
-    .form-input {
-      transition: all 0.3s;
-      padding-left: 2.5rem;
-    }
-
-    .form-input:focus {
-      border-color: #4f46e5;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-    }
-
-    .register-btn {
-      background: linear-gradient(to right, #4f46e5, #7e22ce);
-      transition: all 0.3s;
-    }
-
-    .register-btn:hover {
-      background: linear-gradient(to right, #4338ca, #6b21a8);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .animated {
-      animation: fadeIn 0.6s ease-out forwards;
-    }
-
-    .animated-delay-1 {
-      opacity: 0;
-      animation: fadeIn 0.6s ease-out 0.1s forwards;
-    }
-
-    .animated-delay-2 {
-      opacity: 0;
-      animation: fadeIn 0.6s ease-out 0.2s forwards;
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/register.css">
 </head>
 
 <body class="bg-gray-50 flex items-center justify-center min-h-screen p-4">
-  <!-- Top Navigation -->
-  <header class="bg-white shadow-sm fixed top-0 left-0 right-0 z-30">
-    <nav class="container mx-auto px-4 py-3">
-      <div class="flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-          </svg>
-          <h1 class="text-xl font-bold text-gray-800">CentralAutogy</h1>
-        </div>
+  <?php include 'includes/navbar.php'; ?>
 
-        <!-- Navigation links - Desktop -->
-        <div class="hidden md:flex items-center space-x-6">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Home</a>
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Inventory</a>
-          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
-        </div>
 
-        <!-- CTA Buttons -->
-        <div class="flex items-center space-x-3">
-          <a href="#" class="hidden sm:block text-gray-600 hover:text-indigo-600 transition-colors">
-            <div class="flex items-center space-x-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-              </svg>
-              <span>Saved</span>
-            </div>
-          </a>
-          <a href="login.php" class="hidden sm:block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-            Login
-          </a>
-
-          <!-- Mobile menu button -->
-          <button id="mobileMenuBtn" class="md:hidden text-gray-600 hover:text-indigo-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
-        <div class="flex flex-col space-y-2">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Home</a>
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
-          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-            </svg>
-            Saved Cars
-          </a>
-          <a href="login.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-center">
-            Login
-          </a>
-        </div>
-      </div>
-    </nav>
-  </header>
-  
   <!-- Main Content -->
   <div class="register-card bg-white w-full max-w-5xl flex flex-col md:flex-row mt-25">
     <!-- Left side - car image with overlay -->
     <div class="hidden md:block md:w-1/2 bg-car relative">
       <div class="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-purple-900/70 flex flex-col justify-center items-center p-12">
         <div class="text-center">
-          
+
           <div class="flex items-center justify-center mb-6 animated">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
@@ -227,7 +230,14 @@
           <p class="text-gray-600 mt-2">Join our community of car enthusiasts</p>
         </div>
 
-        <form id="registerForm" class="space-y-4 animated-delay-1">
+        <?php if ($registrationError): ?>
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline"><?php echo $registrationError; ?></span>
+          </div>
+        <?php endif; ?>
+
+        <form id="registerForm" class="space-y-4 animated-delay-1" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="input-group">
               <div class="input-icon">
@@ -235,7 +245,10 @@
                   <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <input type="text" id="firstName" name="firstName" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="First Name" required>
+              <input type="text" id="firstName" name="firstName" class="form-input w-full px-4 py-3 border <?php echo $firstNameErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="First Name" value="<?php echo $firstName; ?>" required>
+              <?php if ($firstNameErr): ?>
+                <p class="text-red-500 text-xs mt-1"><?php echo $firstNameErr; ?></p>
+              <?php endif; ?>
             </div>
 
             <div class="input-group">
@@ -244,7 +257,10 @@
                   <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <input type="text" id="lastName" name="lastName" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Last Name" required>
+              <input type="text" id="lastName" name="lastName" class="form-input w-full px-4 py-3 border <?php echo $lastNameErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Last Name" value="<?php echo $lastName; ?>" required>
+              <?php if ($lastNameErr): ?>
+                <p class="text-red-500 text-xs mt-1"><?php echo $lastNameErr; ?></p>
+              <?php endif; ?>
             </div>
           </div>
 
@@ -255,7 +271,10 @@
                 <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
               </svg>
             </div>
-            <input type="email" id="email" name="email" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Email Address" required>
+            <input type="email" id="email" name="email" class="form-input w-full px-4 py-3 border <?php echo $emailErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Email Address" value="<?php echo $email; ?>" required>
+            <?php if ($emailErr): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $emailErr; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="input-group">
@@ -264,7 +283,10 @@
                 <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 7V3z" />
               </svg>
             </div>
-            <input type="tel" id="phone" name="phone" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Phone Number" required>
+            <input type="tel" id="phone" name="phone" class="form-input w-full px-4 py-3 border <?php echo $phoneErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Phone Number" value="<?php echo $phone; ?>" required>
+            <?php if ($phoneErr): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $phoneErr; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="input-group">
@@ -273,7 +295,10 @@
                 <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input type="password" id="password" name="password" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Password" required>
+            <input type="password" id="password" name="password" class="form-input w-full px-4 py-3 border <?php echo $passwordErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Password" required>
+            <?php if ($passwordErr): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $passwordErr; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="input-group">
@@ -282,7 +307,10 @@
                 <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input type="password" id="confirmPassword" name="confirmPassword" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Confirm Password" required>
+            <input type="password" id="confirmPassword" name="confirmPassword" class="form-input w-full px-4 py-3 border <?php echo $confirmPasswordErr ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Confirm Password" required>
+            <?php if ($confirmPasswordErr): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $confirmPasswordErr; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="flex items-start mt-4">
@@ -291,6 +319,9 @@
               I agree to the <a href="#" class="text-indigo-600 hover:text-indigo-500">Terms of Service</a> and <a href="#" class="text-indigo-600 hover:text-indigo-500">Privacy Policy</a>
             </label>
           </div>
+          <?php if ($termsErr): ?>
+            <p class="text-red-500 text-xs"><?php echo $termsErr; ?></p>
+          <?php endif; ?>
 
           <div class="flex items-start">
             <input type="checkbox" id="marketing" name="marketing" class="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
@@ -314,27 +345,6 @@
             </p>
           </div>
         </form>
-
-        <div class="mt-6 pt-6 border-t border-gray-200 animated-delay-2">
-          <p class="text-center text-sm text-gray-600 mb-4">Or register with</p>
-          <div class="grid grid-cols-2 gap-4">
-            <button class="flex items-center justify-center py-2.5 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <svg class="h-5 w-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              <span class="text-gray-700 font-medium text-sm">Google</span>
-            </button>
-            <button class="flex items-center justify-center py-2.5 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M22 12c0-5.523-4.477-10-10-10s-10 4.477-10 10c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54v-2.891h2.54v-2.203c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562v1.875h2.773l-.443 2.891h-2.33v6.988C18.343 21.128 22 16.991 22 12z" fill="#1877F2" />
-              </svg>
-              <span class="text-gray-700 font-medium text-sm">Facebook</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -348,7 +358,7 @@
       mobileMenu.classList.toggle('hidden');
     });
 
-    // Password validation
+    // Client-side password validation (in addition to server-side)
     const password = document.getElementById('password');
     const confirmPassword = document.getElementById('confirmPassword');
 
@@ -363,27 +373,10 @@
     password.onchange = validatePassword;
     confirmPassword.onkeyup = validatePassword;
 
-    // Registration form submission
+    // Form validation enhancement
     document.getElementById('registerForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      // Get form data
-      const formData = {
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        password: document.getElementById('password').value,
-        marketing: document.getElementById('marketing').checked
-      };
-
-      // In a real application, you would send this data to the server
-      // For demo purposes, log the data and redirect to the login page
-      console.log('Registration data:', formData);
-
-      // Show success message or redirect
-      alert('Account created successfully! Please log in.');
-      window.location.href = 'login.php';
+      // Client-side validation is in place
+      // The form will be submitted to the server where PHP validation will occur
     });
   </script>
 </body>

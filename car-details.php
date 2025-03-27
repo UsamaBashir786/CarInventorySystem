@@ -91,72 +91,7 @@
 </head>
 
 <body class="bg-gray-50">
-  <!-- Top Navigation -->
-  <header class="bg-white shadow-sm sticky top-0 z-30">
-    <nav class="container mx-auto px-4 py-3">
-      <div class="flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-          </svg>
-          <h1 class="text-xl font-bold text-gray-800">CentralAutogy</h1>
-        </div>
-
-        <!-- Navigation links - Desktop -->
-        <div class="hidden md:flex items-center space-x-6">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Home</a>
-          <a href="index.php" class="text-indigo-600 font-medium">Inventory</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
-        </div>
-
-        <!-- CTA Buttons -->
-        <div class="flex items-center space-x-3">
-          <a href="#" class="hidden sm:block text-gray-600 hover:text-indigo-600 transition-colors">
-            <div class="flex items-center space-x-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-              </svg>
-              <span>Saved</span>
-            </div>
-          </a>
-          <a href="login.php" class="hidden sm:block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-            Login
-          </a>
-
-          <!-- Mobile menu button -->
-          <button id="mobileMenuBtn" class="md:hidden text-gray-600 hover:text-indigo-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
-        <div class="flex flex-col space-y-2">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Home</a>
-          <a href="index.php" class="text-indigo-600 font-medium py-2">Inventory</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-            </svg>
-            Saved Cars
-          </a>
-          <a href="login.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-center">
-            Login
-          </a>
-        </div>
-      </div>
-    </nav>
-  </header>
+  <?php include 'includes/navbar.php'; ?>
 
   <!-- Main Content -->
   <main class="container mx-auto px-4 py-6">
@@ -440,60 +375,64 @@
             </a>
           </div>
         </div>
-
-        <!-- Financing Calculator -->
+        <!-- Booking Form -->
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h3 class="font-semibold text-gray-800 text-lg mb-4">Estimate Your Payment</h3>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Price</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span class="text-gray-500">$</span>
-                </div>
-                <input type="number" id="vehiclePrice" value="24990" class="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+          <h3 class="font-semibold text-gray-800 text-lg mb-4">Book This Vehicle</h3>
+          <form id="bookingForm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="fullName" name="fullName" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <input type="email" id="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input type="tel" id="phone" name="phone" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="pickupDate" class="block text-sm font-medium text-gray-700 mb-1">Preferred Pickup Date</label>
+                <input type="date" id="pickupDate" name="pickupDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="financingNeeded" class="block text-sm font-medium text-gray-700 mb-1">Financing Needed?</label>
+                <select id="financingNeeded" name="financingNeeded" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Select an option</option>
+                  <option value="yes">Yes, I need financing</option>
+                  <option value="no">No, I'll pay in full</option>
+                  <option value="unsure">I need more information</option>
+                </select>
+              </div>
+              <div>
+                <label for="contactMethod" class="block text-sm font-medium text-gray-700 mb-1">Preferred Contact Method</label>
+                <select id="contactMethod" name="contactMethod" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Select an option</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                  <option value="text">Text Message</option>
+                </select>
               </div>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Down Payment</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span class="text-gray-500">$</span>
-                </div>
-                <input type="number" id="downPayment" value="3000" class="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-              </div>
+            <div class="mb-4">
+              <label for="additionalInfo" class="block text-sm font-medium text-gray-700 mb-1">Special Requests or Questions</label>
+              <textarea id="additionalInfo" name="additionalInfo" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Term (Months)</label>
-              <select id="term" class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                <option value="36">36 Months</option>
-                <option value="48">48 Months</option>
-                <option value="60" selected>60 Months</option>
-                <option value="72">72 Months</option>
-                <option value="84">84 Months</option>
-              </select>
+            <div class="mb-4">
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="termsAgree" required class="rounded text-indigo-600 focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-600">I agree to the <a href="#" class="text-indigo-600 hover:underline">terms and conditions</a></span>
+              </label>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
-              <input type="number" id="interestRate" value="4.5" step="0.1" class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-
-            <div class="pt-4 border-t border-gray-200">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-gray-600">Estimated monthly payment:</span>
-                <span id="monthlyPayment" class="text-xl font-semibold text-indigo-600">$412</span>
-              </div>
-              <p class="text-xs text-gray-500">
-                *This is only an estimate. Contact us for accurate financing options based on your credit score and qualifications.
-              </p>
-            </div>
-          </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium transition-colors shadow-sm">
+              Reserve This Vehicle
+            </button>
+          </form>
         </div>
-
         <!-- Quick Specs -->
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h3 class="font-semibold text-gray-800 text-lg mb-4">Quick Overview</h3>

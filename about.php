@@ -73,83 +73,33 @@
 </head>
 
 <body class="bg-gray-50">
-  <!-- Top Navigation -->
-  <header class="bg-white shadow-sm sticky top-0 z-30">
-    <nav class="container mx-auto px-4 py-3">
-      <div class="flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-          </svg>
-          <h1 class="text-xl font-bold text-gray-800">CentralAutogy</h1>
-        </div>
+  <?php include 'includes/navbar.php'; ?>
 
-        <!-- Navigation links - Desktop -->
-        <div class="hidden md:flex items-center space-x-6">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Home</a>
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Inventory</a>
-          <a href="about.php" class="text-indigo-600 font-medium">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
-        </div>
-
-        <!-- CTA Buttons -->
-        <div class="flex items-center space-x-3">
-          <a href="#" class="hidden sm:block text-gray-600 hover:text-indigo-600 transition-colors">
-            <div class="flex items-center space-x-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-              </svg>
-              <span>Saved</span>
-            </div>
-          </a>
-          <a href="login.php" class="hidden sm:block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-            Login
-          </a>
-
-          <!-- Mobile menu button -->
-          <button id="mobileMenuBtn" class="md:hidden text-gray-600 hover:text-indigo-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
-        <div class="flex flex-col space-y-2">
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Home</a>
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
-          <a href="about.php" class="text-indigo-600 font-medium py-2">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-            </svg>
-            Saved Cars
-          </a>
-          <a href="login.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-center">
-            Login
-          </a>
-        </div>
-      </div>
-    </nav>
-  </header>
 
   <!-- Main Content -->
   <main>
-    <!-- Hero Section -->
-    <section class="relative">
-      <div class="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-purple-900/80 z-10"></div>
-      <div class="absolute inset-0 bg-black/40 z-0"></div>
-      <div class="relative h-96 bg-[url('https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')] bg-cover bg-center z-0">
-        <div class="container mx-auto px-4 h-full flex flex-col justify-center z-20 relative">
-          <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">About CentralAutogy</h1>
-          <p class="text-xl text-white/90 max-w-2xl">We're passionate about connecting drivers with their perfect vehicle. Learn about our story, our team, and our commitment to excellence.</p>
+    <!-- Simplified approach using only Tailwind classes -->
+    <section class="relative h-96 overflow-hidden">
+      <!-- Background image div -->
+      <div class="absolute inset-0">
+        <img
+          src="https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+          alt="Luxury car background"
+          class="w-full h-full object-cover" />
+      </div>
+
+      <!-- Purple overlay as a separate div -->
+      <div class="absolute inset-0 bg-indigo-900 opacity-80"></div>
+
+      <!-- Content container -->
+      <div class="relative container mx-auto px-4 h-full flex flex-col justify-center">
+        <div class="text-white max-w-2xl">
+          <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-lg">
+            About CentralAutogy
+          </h1>
+          <p class="text-lg md:text-xl text-white/90 drop-shadow">
+            We're passionate about connecting drivers with their perfect vehicle. Learn about our story, our team, and our commitment to excellence.
+          </p>
         </div>
       </div>
     </section>
@@ -327,8 +277,8 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div class="team-card bg-white shadow-sm">
-          <img src="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" alt="Sarah Johnson" class="team-img">
-          <div class="p-4">
+            <img src="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" alt="Sarah Johnson" class="team-img">
+            <div class="p-4">
               <h3 class="font-bold text-gray-800 text-lg mb-1">Michael Anderson</h3>
               <p class="text-indigo-600 text-sm mb-3">Founder & CEO</p>
               <p class="text-gray-600 text-sm mb-4">With over 20 years in the automotive industry, Michael founded CentralAutogy with a vision to transform the car buying experience.</p>

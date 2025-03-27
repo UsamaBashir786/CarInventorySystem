@@ -1,3 +1,7 @@
+<?php 
+session_start();
+
+?>
 <!doctype html>
 <html>
 
@@ -120,72 +124,7 @@
 </head>
 
 <body class="bg-gray-50">
-  <!-- Top Navigation -->
-  <header class="bg-white shadow-sm sticky top-0 z-30">
-    <nav class="container mx-auto px-4 py-3">
-      <div class="flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-          </svg>
-          <h1 class="text-xl font-bold text-gray-800">CentralAutogy</h1>
-        </div>
-
-        <!-- Navigation links - Desktop -->
-        <div class="hidden md:flex items-center space-x-6">
-          <a href="#" class="text-indigo-600 font-medium">Home</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Inventory</a>
-          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors">Contact</a>
-        </div>
-
-        <!-- CTA Buttons -->
-        <div class="flex items-center space-x-3">
-          <a href="#" class="hidden sm:block text-gray-600 hover:text-indigo-600 transition-colors">
-            <div class="flex items-center space-x-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-              </svg>
-              <span>Saved</span>
-            </div>
-          </a>
-          <a href="login.php" class="hidden sm:block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-            Login
-          </a>
-
-          <!-- Mobile menu button -->
-          <button id="mobileMenuBtn" class="md:hidden text-gray-600 hover:text-indigo-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="hidden md:hidden mt-4 pb-2">
-        <div class="flex flex-col space-y-2">
-          <a href="index.php" class="text-indigo-600 font-medium py-2">Home</a>
-          <a href="index.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Inventory</a>
-          <a href="about.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">About Us</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Financing</a>
-          <a href="contact.php" class="text-gray-600 hover:text-indigo-600 transition-colors py-2">Contact</a>
-          <a href="#" class="text-gray-600 hover:text-indigo-600 transition-colors py-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-            </svg>
-            Saved Cars
-          </a>
-          <a href="login.php" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-center">
-            Login
-          </a>
-        </div>
-      </div>
-    </nav>
-  </header>
+  <?php include 'includes/navbar.php'; ?>
 
   <!-- Main Content -->
   <main class="container mx-auto px-4 py-6">
@@ -198,7 +137,7 @@
         <!-- Search bar -->
         <div class="flex flex-col sm:flex-row gap-3 mb-2">
           <div class="flex-grow">
-            <input type="text" placeholder="Search by make, model, or features..." class="w-full px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <input type="text" placeholder="Search by make, model, or features..." class="w-full px-4 py-3 border border-gray-300 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
           </div>
           <button class="bg-white text-indigo-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-medium transition-colors whitespace-nowrap">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">

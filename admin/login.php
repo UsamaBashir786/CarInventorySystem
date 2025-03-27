@@ -1,3 +1,132 @@
+<?php
+// Start session
+session_start();
+
+// Include database configuration
+require_once '../config/db.php';
+
+// Define variables and initialize with empty values
+$username_email = $password = "";
+$username_email_err = $password_err = $login_err = "";
+
+// Check if user is already logged in, redirect to dashboard
+if (isset($_SESSION["admin_id"])) {
+    header("location: index.php");
+    exit;
+}
+
+// Processing form data when form is submitted
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
+    // Validate username/email
+    if (empty(trim($_POST["username"]))) {
+        $username_email_err = "Please enter your username or email.";
+    } else {
+        $username_email = trim($_POST["username"]);
+    }
+    
+    // Validate password
+    if (empty(trim($_POST["password"]))) {
+        $password_err = "Please enter your password.";
+    } else {
+        $password = trim($_POST["password"]);
+    }
+    
+    // Check input errors before authenticating
+    if (empty($username_email_err) && empty($password_err)) {
+        // Query to check if the username/email exists
+        $sql = "SELECT id, username, email, password, first_name, last_name, role FROM admin_users WHERE username = ? OR email = ?";
+        
+        if ($stmt = $conn->prepare($sql)) {
+            // Bind parameters
+            $stmt->bind_param("ss", $username_email, $username_email);
+            
+            // Execute the query
+            if ($stmt->execute()) {
+                // Store result
+                $stmt->store_result();
+                
+                // Check if user exists
+                if ($stmt->num_rows == 1) {
+                    // Bind result variables
+                    $stmt->bind_result($id, $username, $email, $hashed_password, $first_name, $last_name, $role);
+                    
+                    // Fetch values
+                    if ($stmt->fetch()) {
+                        // Verify password
+                        if (password_verify($password, $hashed_password)) {
+                            // Password is correct, start a new session
+                            session_start();
+                            
+                            // Store data in session variables
+                            $_SESSION["admin_id"] = $id;
+                            $_SESSION["admin_username"] = $username;
+                            $_SESSION["admin_email"] = $email;
+                            $_SESSION["admin_name"] = $first_name . " " . $last_name;
+                            $_SESSION["admin_role"] = $role;
+                            $_SESSION["admin_loggedin"] = true;
+                            
+                            // Update last login timestamp
+                            $update_sql = "UPDATE admin_users SET last_login = NOW() WHERE id = ?";
+                            if ($update_stmt = $conn->prepare($update_sql)) {
+                                $update_stmt->bind_param("i", $id);
+                                $update_stmt->execute();
+                                $update_stmt->close();
+                            }
+                            
+                            // Remember me functionality
+                            if (isset($_POST["remember"]) && $_POST["remember"] == "on") {
+                                $token = bin2hex(random_bytes(32));
+                                $expiry = time() + (30 * 24 * 60 * 60); // 30 days
+                                
+                                setcookie("admin_remember_token", $token, $expiry, "/", "", true, true);
+                                
+                                // Store the token in the database (you would need an admin_tokens table)
+                                $token_sql = "INSERT INTO admin_tokens (admin_id, token, expires_at) VALUES (?, ?, FROM_UNIXTIME(?))";
+                                if ($token_stmt = $conn->prepare($token_sql)) {
+                                    $token_stmt->bind_param("isi", $id, $token, $expiry);
+                                    $token_stmt->execute();
+                                    $token_stmt->close();
+                                }
+                            }
+                            
+                            // Log the login activity
+                            $activity_sql = "INSERT INTO admin_activity_logs (admin_id, activity_type, ip_address, user_agent) 
+                                           VALUES (?, 'login', ?, ?)";
+                            if ($activity_stmt = $conn->prepare($activity_sql)) {
+                                $ip_address = $_SERVER['REMOTE_ADDR'];
+                                $user_agent = $_SERVER['HTTP_USER_AGENT'];
+                                $activity_stmt->bind_param("iss", $id, $ip_address, $user_agent);
+                                $activity_stmt->execute();
+                                $activity_stmt->close();
+                            }
+                            
+                            // Redirect to admin dashboard
+                            header("location: index.php");
+                            exit;
+                        } else {
+                            // Password is incorrect
+                            $login_err = "Invalid username/email or password.";
+                        }
+                    }
+                } else {
+                    // Username/email doesn't exist
+                    $login_err = "Invalid username/email or password.";
+                }
+            } else {
+                $login_err = "Oops! Something went wrong. Please try again later.";
+            }
+            
+            // Close statement
+            $stmt->close();
+        }
+    }
+    
+    // Close connection
+    $conn->close();
+}
+?>
+
 <!doctype html>
 <html>
 
@@ -154,14 +283,26 @@
           <p class="text-gray-600 mt-2">Sign in to access your dashboard</p>
         </div>
 
-        <form id="loginForm" class="space-y-6 animated-delay-1">
+        <?php
+        // Display error message if there is one
+        if (!empty($login_err)) {
+            echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+                    <p>' . $login_err . '</p>
+                  </div>';
+        }
+        ?>
+
+        <form id="loginForm" class="space-y-6 animated-delay-1" method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
           <div class="input-group">
             <div class="input-icon">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input type="text" id="username" name="username" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Username or Email" required>
+            <input type="text" id="username" name="username" class="form-input w-full px-4 py-3 border <?php echo (!empty($username_email_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Username or Email" value="<?php echo $username_email; ?>" required>
+            <?php if (!empty($username_email_err)): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $username_email_err; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="input-group">
@@ -170,7 +311,10 @@
                 <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input type="password" id="password" name="password" class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none" placeholder="Password" required>
+            <input type="password" id="password" name="password" class="form-input w-full px-4 py-3 border <?php echo (!empty($password_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none" placeholder="Password" required>
+            <?php if (!empty($password_err)): ?>
+              <p class="text-red-500 text-xs mt-1"><?php echo $password_err; ?></p>
+            <?php endif; ?>
           </div>
 
           <div class="flex items-center justify-between">
@@ -203,22 +347,6 @@
   </div>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-
-      // Basic validation
-      if (!username || !password) {
-        showToast('Please enter both username and password', 'error');
-        return;
-      }
-
-      // In a real application, you would verify credentials on the server
-      // For demo purposes, just redirect to dashboard
-      window.location.href = 'index.php';
-    });
-
     // Toast notification function
     function showToast(message, type = 'success') {
       // Create toast element
@@ -262,6 +390,13 @@
         }, 500);
       }, 3000);
     }
+
+    <?php 
+    // Show success toast if redirected from logout
+    if (isset($_GET['logout']) && $_GET['logout'] == 'success') {
+      echo "document.addEventListener('DOMContentLoaded', function() { showToast('You have been successfully logged out', 'success'); });";
+    }
+    ?>
   </script>
 </body>
 
