@@ -1,3 +1,145 @@
+<?php
+session_start();
+// Check if admin is logged in
+if (!isset($_SESSION["admin_id"])) {
+  header("location: login.php");
+  exit;
+}
+
+// Include database connection
+require_once '../config/db.php';
+
+// Function to get database connection if not already defined
+if (!function_exists('getConnection')) {
+  function getConnection()
+  {
+    $host = "localhost";
+    $username = "root";
+    $password = "";
+    $database = "centralautogy";
+
+    $conn = new mysqli($host, $username, $password, $database);
+
+    if ($conn->connect_error) {
+      die("Connection failed: " . $conn->connect_error);
+    }
+
+    return $conn;
+  }
+}
+
+// Function to get dropdown options
+function getDropdownOptions()
+{
+  $conn = getConnection();
+  $dropdowns = [];
+
+  // Fetch makes
+  $makesSql = "SELECT id, name FROM makes ORDER BY display_order, name";
+  $makesResult = $conn->query($makesSql);
+  $dropdowns['makes'] = [];
+  if ($makesResult && $makesResult->num_rows > 0) {
+    while ($row = $makesResult->fetch_assoc()) {
+      $dropdowns['makes'][] = $row;
+    }
+  }
+
+  // Fetch body types
+  $bodyTypesSql = "SELECT id, name FROM body_types ORDER BY display_order, name";
+  $bodyTypesResult = $conn->query($bodyTypesSql);
+  $dropdowns['bodyTypes'] = [];
+  if ($bodyTypesResult && $bodyTypesResult->num_rows > 0) {
+    while ($row = $bodyTypesResult->fetch_assoc()) {
+      $dropdowns['bodyTypes'][] = $row;
+    }
+  }
+
+  // Fetch fuel types
+  $fuelTypesSql = "SELECT id, name FROM fuel_types ORDER BY display_order, name";
+  $fuelTypesResult = $conn->query($fuelTypesSql);
+  $dropdowns['fuelTypes'] = [];
+  if ($fuelTypesResult && $fuelTypesResult->num_rows > 0) {
+    while ($row = $fuelTypesResult->fetch_assoc()) {
+      $dropdowns['fuelTypes'][] = $row;
+    }
+  }
+
+  // Fetch transmission types
+  $transmissionsSql = "SELECT id, name FROM transmission_types ORDER BY display_order, name";
+  $transmissionsResult = $conn->query($transmissionsSql);
+  $dropdowns['transmissions'] = [];
+  if ($transmissionsResult && $transmissionsResult->num_rows > 0) {
+    while ($row = $transmissionsResult->fetch_assoc()) {
+      $dropdowns['transmissions'][] = $row;
+    }
+  }
+
+  // Fetch drive types
+  $driveTypesSql = "SELECT id, name FROM drive_types ORDER BY display_order, name";
+  $driveTypesResult = $conn->query($driveTypesSql);
+  $dropdowns['driveTypes'] = [];
+  if ($driveTypesResult && $driveTypesResult->num_rows > 0) {
+    while ($row = $driveTypesResult->fetch_assoc()) {
+      $dropdowns['driveTypes'][] = $row;
+    }
+  }
+
+  // Fetch colors
+  $colorsSql = "SELECT id, name, hex_code FROM colors ORDER BY display_order, name";
+  $colorsResult = $conn->query($colorsSql);
+  $dropdowns['colors'] = [];
+  if ($colorsResult && $colorsResult->num_rows > 0) {
+    while ($row = $colorsResult->fetch_assoc()) {
+      $dropdowns['colors'][] = $row;
+    }
+  }
+
+  // Fetch vehicle statuses
+  $statusSql = "SELECT id, name, css_class FROM vehicle_status ORDER BY display_order, name";
+  $statusResult = $conn->query($statusSql);
+  $dropdowns['statuses'] = [];
+  if ($statusResult && $statusResult->num_rows > 0) {
+    while ($row = $statusResult->fetch_assoc()) {
+      $dropdowns['statuses'][] = $row;
+    }
+  }
+
+  $conn->close();
+  return $dropdowns;
+}
+
+// Function to get models by make ID (for AJAX)
+function getModelsByMakeId($makeId)
+{
+  $conn = getConnection();
+  $models = [];
+
+  $stmt = $conn->prepare("SELECT id, name FROM models WHERE make_id = ? ORDER BY display_order, name");
+  $stmt->bind_param("i", $makeId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+      $models[] = $row;
+    }
+  }
+
+  $stmt->close();
+  $conn->close();
+  return $models;
+}
+
+// Get all dropdown options
+$dropdowns = getDropdownOptions();
+
+// Load all models data for client-side filtering
+$allModels = [];
+foreach ($dropdowns['makes'] as $make) {
+  $makeId = $make['id'];
+  $allModels[$makeId] = getModelsByMakeId($makeId);
+}
+?>
 <!doctype html>
 <html>
 
@@ -6,286 +148,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="../src/output.css" rel="stylesheet">
   <title>CentralAutogy - Car Inventory Management</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-
-    body,
-    html {
-      font-family: 'Poppins', sans-serif;
-      height: 100%;
-      overflow: hidden;
-    }
-
-    .sidebar {
-      height: calc(100vh - 64px);
-      transition: all 0.3s;
-    }
-
-    .dashboard-card {
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s;
-    }
-
-    .dashboard-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    }
-
-    .sidebar-item {
-      border-radius: 10px;
-      transition: all 0.2s;
-    }
-
-    .sidebar-item:hover {
-      transform: translateX(5px);
-    }
-
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 10px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #94a3b8;
-      border-radius: 10px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: #64748b;
-    }
-
-    .table-row {
-      transition: all 0.2s;
-    }
-
-    .table-row:hover {
-      background-color: #f8fafc;
-    }
-
-    /* Animation for modal */
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-
-      to {
-        opacity: 1;
-      }
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateY(-20px);
-      }
-
-      to {
-        transform: translateY(0);
-      }
-    }
-
-    .modal-animation {
-      animation: fadeIn 0.3s, slideIn 0.3s;
-    }
-
-    /* Custom file input */
-    .file-drop-area {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      padding: 25px;
-      border: 2px dashed #cbd5e1;
-      border-radius: 12px;
-      transition: 0.3s;
-      background-color: #f8fafc;
-    }
-
-    .file-drop-area:hover,
-    .file-drop-area.is-active {
-      background-color: #f1f5f9;
-      border-color: #94a3b8;
-    }
-
-    .fake-btn {
-      flex-shrink: 0;
-      background-color: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 15px;
-      margin-right: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #334155;
-      transition: 0.3s;
-    }
-
-    input[type="file"] {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      width: 100%;
-      opacity: 0;
-      cursor: pointer;
-    }
-
-    .file-msg {
-      color: #64748b;
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 1.4;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/index.css">
 </head>
 
 <body class="bg-gray-50">
-  <!-- Header -->
-  <header class="bg-gradient-to-r from-indigo-700 to-purple-700 text-white shadow-lg">
-    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-          </svg>
-          <h1 class="text-2xl font-bold">CentralAutogy</h1>
-        </div>
-        <span class="hidden md:inline-block text-sm bg-white bg-opacity-20 text-black px-3 py-1 rounded-full">Admin Dashboard</span>
-      </div>
-      <div class="flex items-center space-x-6">
-        <div class="relative hidden md:block">
-          <div class="flex items-center space-x-2">
-            <div class="h-8 w-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <span class="font-medium">Welcome, Admin</span>
-          </div>
-        </div>
-        <div class="flex items-center space-x-1">
-          <a href="#" class="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-            </svg>
-          </a>
-          <a href="#" class="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-            </svg>
-          </a>
-          <button id="logoutBtn" class="flex items-center space-x-1 bg-white bg-opacity-10 hover:bg-opacity-20 text-black px-3 py-1.5 rounded-full text-sm font-medium transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-5-5H3zm7 5a1 1 0 00-1 1v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 14.586V9a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </header>
-
+  <?php include 'includes/header.php'; ?>
   <div class="flex h-[calc(100vh-64px)]">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-lg sidebar hidden md:block overflow-y-auto">
-      <nav class="p-4">
-        <div class="mb-6">
-          <div class="flex items-center px-4 py-2.5">
-            <div class="w-full relative">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input type="text" placeholder="Search..." class="pl-10 w-full rounded-lg border border-gray-200 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-            </div>
-          </div>
-        </div>
-
-        <div class="space-y-6">
-          <div>
-            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Main Menu</p>
-            <ul class="mt-2 space-y-1">
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-                    <path d="M3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" />
-                    <path d="M3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" />
-                  </svg>
-                  <span>Dashboard</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-                  </svg>
-                  <span>Car Inventory</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4.07 11c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                  </svg>
-                  <span>Customers</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
-                  </svg>
-                  <span>Orders</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                  </svg>
-                  <span>Reports</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
-            <ul class="mt-2 space-y-1">
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                  </svg>
-                  <span>Settings</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                  </svg>
-                  <span>Help & Support</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    </aside>
+    <?php include 'includes/sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="flex-1 p-6 overflow-y-auto bg-gray-50">
@@ -305,100 +174,7 @@
         <p class="text-gray-600">Monitor and manage your car inventory</p>
       </div>
 
-      <!-- Dashboard Stats -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="dashboard-card bg-white p-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-gray-500 text-sm font-medium">Total Vehicles</p>
-              <h3 class="text-3xl font-bold text-gray-800 mt-1">152</h3>
-            </div>
-            <div class="bg-indigo-100 rounded-full p-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="mt-4 flex items-center">
-            <span class="text-green-500 text-sm font-medium flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              12%
-            </span>
-            <span class="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-
-        <div class="dashboard-card bg-white p-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-gray-500 text-sm font-medium">Available</p>
-              <h3 class="text-3xl font-bold text-gray-800 mt-1">98</h3>
-            </div>
-            <div class="bg-green-100 rounded-full p-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="mt-4 flex items-center">
-            <span class="text-red-500 text-sm font-medium flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-              3%
-            </span>
-            <span class="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-
-        <div class="dashboard-card bg-white p-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-gray-500 text-sm font-medium">Sold</p>
-              <h3 class="text-3xl font-bold text-gray-800 mt-1">42</h3>
-            </div>
-            <div class="bg-purple-100 rounded-full p-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="mt-4 flex items-center">
-            <span class="text-green-500 text-sm font-medium flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              22%
-            </span>
-            <span class="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-
-        <div class="dashboard-card bg-white p-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-gray-500 text-sm font-medium">In Transit</p>
-              <h3 class="text-3xl font-bold text-gray-800 mt-1">12</h3>
-            </div>
-            <div class="bg-amber-100 rounded-full p-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="mt-4 flex items-center">
-            <span class="text-green-500 text-sm font-medium flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              8%
-            </span>
-            <span class="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-      </div>
+      <?php include 'includes/stats.php'; ?>
 
       <!-- Recent Inventory & Add New Car -->
       <div class="flex flex-col lg:flex-row gap-6">
@@ -563,57 +339,64 @@
         <!-- Add New Car Form -->
         <div class="dashboard-card bg-white p-6 w-full lg:w-1/4">
           <h2 class="text-xl font-bold text-gray-800 mb-6">Quick Add Vehicle</h2>
-          <form id="quickAddForm" class="space-y-4">
+          <form id="quickAddForm" class="space-y-4" method="post" action="process_add_vehicle.php">
             <div>
-              <label for="carName" class="block text-sm font-medium text-gray-700 mb-1">Car Name</label>
-              <input type="text" id="carName" name="carName" placeholder="e.g. Toyota Camry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+              <label for="make" class="block text-sm font-medium text-gray-700 mb-1">Make</label>
+              <select id="make" name="make" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+                <option value="">Select Make</option>
+                <?php foreach ($dropdowns['makes'] as $make): ?>
+                  <option value="<?php echo $make['id']; ?>"><?php echo htmlspecialchars($make['name']); ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div>
-              <label for="carBody" class="block text-sm font-medium text-gray-700 mb-1">Body Type</label>
-              <select id="carBody" name="carBody" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+              <label for="model" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+              <select id="model" name="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+                <option value="">Select Make First</option>
+              </select>
+            </div>
+            <div>
+              <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <input type="number" id="year" name="year" min="1900" max="<?php echo date('Y') + 1; ?>" placeholder="e.g. <?php echo date('Y'); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+            </div>
+            <div>
+              <label for="body_style" class="block text-sm font-medium text-gray-700 mb-1">Body Type</label>
+              <select id="body_style" name="body_style" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
                 <option value="">Select Body Type</option>
-                <option value="sedan">Sedan</option>
-                <option value="suv">SUV</option>
-                <option value="hatchback">Hatchback</option>
-                <option value="coupe">Coupe</option>
-                <option value="truck">Truck</option>
-                <option value="van">Van</option>
+                <?php foreach ($dropdowns['bodyTypes'] as $bodyType): ?>
+                  <option value="<?php echo $bodyType['id']; ?>"><?php echo htmlspecialchars($bodyType['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
               <label for="mileage" class="block text-sm font-medium text-gray-700 mb-1">Mileage</label>
-              <input type="text" id="mileage" name="mileage" placeholder="e.g. 15,000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+              <input type="text" id="mileage" name="mileage" placeholder="e.g. 15000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
             </div>
             <div>
-              <label for="fuelType" class="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
-              <select id="fuelType" name="fuelType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
+              <label for="fuel_type" class="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
+              <select id="fuel_type" name="fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
                 <option value="">Select Fuel Type</option>
-                <option value="gasoline">Gasoline</option>
-                <option value="diesel">Diesel</option>
-                <option value="electric">Electric</option>
-                <option value="hybrid">Hybrid</option>
+                <?php foreach ($dropdowns['fuelTypes'] as $fuelType): ?>
+                  <option value="<?php echo $fuelType['id']; ?>"><?php echo htmlspecialchars($fuelType['name']); ?></option>
+                <?php endforeach; ?>
               </select>
-            </div>
-            <div>
-              <label for="yearMake" class="block text-sm font-medium text-gray-700 mb-1">Year/Make</label>
-              <input type="text" id="yearMake" name="yearMake" placeholder="e.g. 2023 Toyota" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
             </div>
             <div>
               <label for="transmission" class="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
               <select id="transmission" name="transmission" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
                 <option value="">Select Transmission</option>
-                <option value="automatic">Automatic</option>
-                <option value="manual">Manual</option>
-                <option value="cvt">CVT</option>
+                <?php foreach ($dropdowns['transmissions'] as $transmission): ?>
+                  <option value="<?php echo $transmission['id']; ?>"><?php echo htmlspecialchars($transmission['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
               <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select id="status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
                 <option value="">Select Status</option>
-                <option value="available">Available</option>
-                <option value="inTransit">In Transit</option>
-                <option value="sold">Sold</option>
+                <?php foreach ($dropdowns['statuses'] as $status): ?>
+                  <option value="<?php echo $status['id']; ?>"><?php echo htmlspecialchars($status['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div class="pt-2">
@@ -624,6 +407,7 @@
           </form>
         </div>
       </div>
+
     </main>
   </div>
 
@@ -648,86 +432,114 @@
           </button>
         </div>
         <div class="p-6 max-h-[70vh] overflow-y-auto">
-          <form id="addCarForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form id="addCarForm" class="grid grid-cols-1 md:grid-cols-2 gap-6" method="post" action="process_add_vehicle.php" enctype="multipart/form-data">
             <div>
-              <label for="modalCarName" class="block text-sm font-medium text-gray-700 mb-1">Car Name</label>
-              <input type="text" id="modalCarName" name="modalCarName" placeholder="e.g. Toyota Camry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <label for="modalMake" class="block text-sm font-medium text-gray-700 mb-1">Make</label>
+              <select id="modalMake" name="make" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <option value="">Select Make</option>
+                <?php foreach ($dropdowns['makes'] as $make): ?>
+                  <option value="<?php echo $make['id']; ?>"><?php echo htmlspecialchars($make['name']); ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div>
-              <label for="modalCarBody" class="block text-sm font-medium text-gray-700 mb-1">Body Type</label>
-              <select id="modalCarBody" name="modalCarBody" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <label for="modalModel" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+              <select id="modalModel" name="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <option value="">Select Make First</option>
+              </select>
+            </div>
+            <div>
+              <label for="modalYear" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <input type="number" id="modalYear" name="year" min="1900" max="<?php echo date('Y') + 1; ?>" placeholder="e.g. <?php echo date('Y'); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+            </div>
+            <div>
+              <label for="modalBodyStyle" class="block text-sm font-medium text-gray-700 mb-1">Body Type</label>
+              <select id="modalBodyStyle" name="body_style" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 <option value="">Select Body Type</option>
-                <option value="sedan">Sedan</option>
-                <option value="suv">SUV</option>
-                <option value="hatchback">Hatchback</option>
-                <option value="coupe">Coupe</option>
-                <option value="truck">Truck</option>
-                <option value="van">Van</option>
+                <?php foreach ($dropdowns['bodyTypes'] as $bodyType): ?>
+                  <option value="<?php echo $bodyType['id']; ?>"><?php echo htmlspecialchars($bodyType['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
               <label for="modalMileage" class="block text-sm font-medium text-gray-700 mb-1">Mileage</label>
-              <input type="text" id="modalMileage" name="modalMileage" placeholder="e.g. 15,000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <input type="text" id="modalMileage" name="mileage" placeholder="e.g. 15000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+            </div>
+            <div>
+              <label for="modalPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+              <input type="text" id="modalPrice" name="price" placeholder="e.g. 25000.00" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+            </div>
+            <div>
+              <label for="modalVIN" class="block text-sm font-medium text-gray-700 mb-1">VIN</label>
+              <input type="text" id="modalVIN" name="vin" placeholder="Vehicle Identification Number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
             </div>
             <div>
               <label for="modalFuelType" class="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
-              <select id="modalFuelType" name="modalFuelType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalFuelType" name="fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 <option value="">Select Fuel Type</option>
-                <option value="gasoline">Gasoline</option>
-                <option value="diesel">Diesel</option>
-                <option value="electric">Electric</option>
-                <option value="hybrid">Hybrid</option>
+                <?php foreach ($dropdowns['fuelTypes'] as $fuelType): ?>
+                  <option value="<?php echo $fuelType['id']; ?>"><?php echo htmlspecialchars($fuelType['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
-              <label for="modalYearMake" class="block text-sm font-medium text-gray-700 mb-1">Year/Make</label>
-              <input type="text" id="modalYearMake" name="modalYearMake" placeholder="e.g. 2023 Toyota" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-            </div>
-            <div>
               <label for="modalTransmission" class="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
-              <select id="modalTransmission" name="modalTransmission" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalTransmission" name="transmission" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 <option value="">Select Transmission</option>
-                <option value="automatic">Automatic</option>
-                <option value="manual">Manual</option>
-                <option value="cvt">CVT</option>
+                <?php foreach ($dropdowns['transmissions'] as $transmission): ?>
+                  <option value="<?php echo $transmission['id']; ?>"><?php echo htmlspecialchars($transmission['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
               <label for="modalDrive" class="block text-sm font-medium text-gray-700 mb-1">Drive Type</label>
-              <select id="modalDrive" name="modalDrive" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalDrive" name="drivetrain" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 <option value="">Select Drive Type</option>
-                <option value="fwd">FWD</option>
-                <option value="rwd">RWD</option>
-                <option value="awd">AWD</option>
-                <option value="4wd">4WD</option>
+                <?php foreach ($dropdowns['driveTypes'] as $driveType): ?>
+                  <option value="<?php echo $driveType['id']; ?>"><?php echo htmlspecialchars($driveType['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
+              <label for="modalEngine" class="block text-sm font-medium text-gray-700 mb-1">Engine</label>
+              <input type="text" id="modalEngine" name="engine" placeholder="e.g. 2.0L 4-Cylinder" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+            </div>
+            <div>
               <label for="modalExteriorColor" class="block text-sm font-medium text-gray-700 mb-1">Exterior Color</label>
-              <input type="text" id="modalExteriorColor" name="modalExteriorColor" placeholder="e.g. White" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalExteriorColor" name="exterior_color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <option value="">Select Exterior Color</option>
+                <?php foreach ($dropdowns['colors'] as $color): ?>
+                  <option value="<?php echo $color['id']; ?>"><?php echo htmlspecialchars($color['name']); ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div>
               <label for="modalInteriorColor" class="block text-sm font-medium text-gray-700 mb-1">Interior Color</label>
-              <input type="text" id="modalInteriorColor" name="modalInteriorColor" placeholder="e.g. Black" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalInteriorColor" name="interior_color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <option value="">Select Interior Color</option>
+                <?php foreach ($dropdowns['colors'] as $color): ?>
+                  <option value="<?php echo $color['id']; ?>"><?php echo htmlspecialchars($color['name']); ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div>
               <label for="modalStatus" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select id="modalStatus" name="modalStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <select id="modalStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 <option value="">Select Status</option>
-                <option value="available">Available</option>
-                <option value="inTransit">In Transit</option>
-                <option value="sold">Sold</option>
+                <?php foreach ($dropdowns['statuses'] as $status): ?>
+                  <option value="<?php echo $status['id']; ?>"><?php echo htmlspecialchars($status['name']); ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
             <div>
               <label for="modalNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea id="modalNotes" name="modalNotes" rows="2" placeholder="Additional information about the vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2focus:ring-indigo-500 text-sm resize-none"></textarea>
+              <textarea id="modalNotes" name="description" rows="2" placeholder="Additional information about the vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"></textarea>
             </div>
 
             <div class="col-span-1 md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Images</label>
               <div class="file-drop-area">
-                <input type="file" id="modalImages" name="modalImages" multiple class="file-input" onChange="updateFileNames()">
+                <input type="file" id="modalImages" name="images[]" multiple class="file-input" onChange="updateFileNames()">
                 <div class="flex flex-col items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -753,169 +565,175 @@
   </div>
 
   <script>
-    // File input enhancement
-    const fileInput = document.getElementById('modalImages');
-    const fileDropArea = document.querySelector('.file-drop-area');
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM content loaded');
 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      fileDropArea.addEventListener(eventName, preventDefaults, false);
-    });
+      // Pre-loaded models data from PHP
+      const allModels = <?php echo json_encode($allModels); ?>;
+      console.log('All models object:', allModels);
+      console.log('Keys in allModels:', Object.keys(allModels));
 
-    function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+      // Check if the make dropdown exists
+      const makeDropdown = document.getElementById('make');
+      const modelDropdown = document.getElementById('model');
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-      fileDropArea.addEventListener(eventName, highlight, false);
-    });
+      console.log('Make dropdown found:', makeDropdown ? 'Yes' : 'No');
+      console.log('Model dropdown found:', modelDropdown ? 'Yes' : 'No');
 
-    ['dragleave', 'drop'].forEach(eventName => {
-      fileDropArea.addEventListener(eventName, unhighlight, false);
-    });
+      if (makeDropdown) {
+        console.log('Make dropdown options:', Array.from(makeDropdown.options).map(o => `${o.textContent} (value: '${o.value}')`));
+      }
 
-    function highlight() {
-      fileDropArea.classList.add('is-active');
-    }
+      if (makeDropdown && modelDropdown) {
+        // IMPORTANT: Disable any existing event handlers that might be conflicting
+        const newMakeDropdown = makeDropdown.cloneNode(true);
+        makeDropdown.parentNode.replaceChild(newMakeDropdown, makeDropdown);
 
-    function unhighlight() {
-      fileDropArea.classList.remove('is-active');
-    }
+        // Add event listener to the new element
+        newMakeDropdown.addEventListener('change', function() {
+          const makeId = this.value;
+          console.log('Make dropdown changed to:', makeId);
+          console.log('Selected index:', this.selectedIndex);
+          console.log('Selected option text:', this.options[this.selectedIndex].text);
 
-    fileDropArea.addEventListener('drop', handleDrop, false);
+          // Clear the model dropdown
+          modelDropdown.innerHTML = '<option value="">Select Model</option>';
 
-    function handleDrop(e) {
-      const dt = e.dataTransfer;
-      const files = dt.files;
-      fileInput.files = files;
-      updateFileNames();
-    }
+          // Check if make ID exists
+          if (makeId) {
+            console.log('Looking for models with make ID:', makeId);
+            console.log('allModels has this key:', allModels.hasOwnProperty(makeId) ? 'Yes' : 'No');
 
-    // Display file names when files are selected
-    function updateFileNames() {
-      const input = document.getElementById('modalImages');
-      const fileNames = document.getElementById('fileNames');
-      fileNames.innerHTML = '';
+            if (allModels[makeId]) {
+              console.log('Found models:', allModels[makeId].length);
 
-      if (input.files.length > 0) {
-        for (let i = 0; i < input.files.length; i++) {
-          const fileName = document.createElement('div');
-          fileName.innerHTML = `<span class="text-indigo-500">•</span> ${input.files[i].name}`;
-          fileNames.appendChild(fileName);
+              // Add models to dropdown
+              allModels[makeId].forEach(function(model) {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                modelDropdown.appendChild(option);
+                console.log('Added model option:', model.name, 'with ID:', model.id);
+              });
+
+              console.log('Final model dropdown options count:', modelDropdown.options.length);
+            } else {
+              console.error('No models found for make ID:', makeId);
+              console.log('Available keys in allModels:', Object.keys(allModels));
+              modelDropdown.innerHTML = '<option value="">No models available for this make</option>';
+            }
+          } else {
+            console.log('No make selected (empty value)');
+          }
+        });
+
+        // Force an initial triggering of the event for debugging
+        console.log('Setting up initial make value for testing...');
+        setTimeout(function() {
+          if (newMakeDropdown.options.length > 1) {
+            newMakeDropdown.value = newMakeDropdown.options[1].value; // Select first non-empty option
+            console.log('Set make dropdown to:', newMakeDropdown.value);
+
+            // Create and dispatch a change event
+            const event = new Event('change');
+            newMakeDropdown.dispatchEvent(event);
+            console.log('Change event dispatched');
+          }
+        }, 500); // Short delay to ensure DOM is ready
+      }
+
+      // Same approach for modal dropdowns
+      const modalMakeDropdown = document.getElementById('modalMake');
+      const modalModelDropdown = document.getElementById('modalModel');
+
+      console.log('Modal make dropdown found:', modalMakeDropdown ? 'Yes' : 'No');
+      console.log('Modal model dropdown found:', modalModelDropdown ? 'Yes' : 'No');
+
+      if (modalMakeDropdown && modalModelDropdown) {
+        // IMPORTANT: Disable any existing event handlers
+        const newModalMakeDropdown = modalMakeDropdown.cloneNode(true);
+        modalMakeDropdown.parentNode.replaceChild(newModalMakeDropdown, modalMakeDropdown);
+
+        // Add event listener to the new element
+        newModalMakeDropdown.addEventListener('change', function() {
+          const makeId = this.value;
+          console.log('Modal make dropdown changed to:', makeId);
+
+          // Clear the model dropdown
+          modalModelDropdown.innerHTML = '<option value="">Select Model</option>';
+
+          // Check if make ID exists
+          if (makeId && allModels[makeId]) {
+            console.log('Found models for modal:', allModels[makeId].length);
+
+            // Add models to dropdown
+            allModels[makeId].forEach(function(model) {
+              const option = document.createElement('option');
+              option.value = model.id;
+              option.textContent = model.name;
+              modalModelDropdown.appendChild(option);
+              console.log('Added modal model option:', model.name);
+            });
+          } else if (makeId) {
+            console.error('No models found for modal make ID:', makeId);
+            modalModelDropdown.innerHTML = '<option value="">No models available for this make</option>';
+          }
+        });
+      }
+
+      // Modal controls
+      const addNewCarBtn = document.getElementById('addNewCarBtn');
+      const addCarModal = document.getElementById('addCarModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const saveVehicleBtn = document.getElementById('saveVehicleBtn');
+      const addCarForm = document.getElementById('addCarForm');
+
+      if (addNewCarBtn && addCarModal && closeModalBtn && cancelBtn) {
+        addNewCarBtn.addEventListener('click', function() {
+          addCarModal.classList.remove('hidden');
+        });
+
+        [closeModalBtn, cancelBtn].forEach(btn => {
+          btn.addEventListener('click', function() {
+            addCarModal.classList.add('hidden');
+          });
+        });
+
+        saveVehicleBtn.addEventListener('click', function() {
+          addCarForm.submit();
+        });
+      }
+
+      // File upload preview
+      window.updateFileNames = function() {
+        const fileInput = document.getElementById('modalImages');
+        const fileNamesDiv = document.getElementById('fileNames');
+
+        if (fileInput && fileNamesDiv) {
+          fileNamesDiv.innerHTML = '';
+
+          if (fileInput.files.length > 0) {
+            Array.from(fileInput.files).forEach(file => {
+              const fileNameEl = document.createElement('div');
+              fileNameEl.textContent = file.name;
+              fileNamesDiv.appendChild(fileNameEl);
+            });
+          }
         }
-      }
-    }
+      };
 
-    // Modal functionality
-    function toggleModal() {
-      const modal = document.getElementById('addCarModal');
-      modal.classList.toggle('hidden');
-
-      if (!modal.classList.contains('hidden')) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = 'auto';
-      }
-    }
-
-    document.getElementById('addNewCarBtn').addEventListener('click', function() {
-      toggleModal();
-    });
-
-    document.getElementById('closeModalBtn').addEventListener('click', function() {
-      toggleModal();
-    });
-
-    document.getElementById('cancelBtn').addEventListener('click', function() {
-      toggleModal();
-    });
-
-    // Close modal when clicking outside the modal content
-    document.getElementById('addCarModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        toggleModal();
-      }
-    });
-
-    // Allow ESC key to close the modal
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && !document.getElementById('addCarModal').classList.contains('hidden')) {
-        toggleModal();
-      }
-    });
-
-    // Mobile menu toggle
-    document.getElementById('mobileMenuBtn').addEventListener('click', function() {
-      const sidebar = document.querySelector('aside');
-      sidebar.classList.toggle('hidden');
-    });
-
-    // Quick add form submission
-    document.getElementById('quickAddForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      // Show success toast
-      showToast('Vehicle added successfully!', 'success');
-    });
-
-    // Modal form submission
-    document.getElementById('saveVehicleBtn').addEventListener('click', function() {
-      // Show success toast
-      showToast('Vehicle added successfully!', 'success');
-      toggleModal();
-    });
-
-    // Toast notification
-    function showToast(message, type = 'success') {
-      // Create toast element
-      const toast = document.createElement('div');
-      toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-2 ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-      } text-white transform transition-all duration-500 opacity-0 translate-y-12`;
-
-      // Create icon
-      const icon = document.createElement('span');
-      if (type === 'success') {
-        icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>`;
-      } else {
-        icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>`;
-      }
-
-      // Create message text
-      const text = document.createElement('span');
-      text.textContent = message;
-      text.className = 'font-medium';
-
-      // Append elements
-      toast.appendChild(icon);
-      toast.appendChild(text);
-      document.body.appendChild(toast);
-
-      // Animate in
-      setTimeout(() => {
-        toast.classList.remove('opacity-0', 'translate-y-12');
-      }, 10);
-
-      // Animate out after 3 seconds
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-12');
-        setTimeout(() => {
-          document.body.removeChild(toast);
-        }, 500);
-      }, 3000);
-    }
-
-    // Logout functionality
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-      if (confirm('Are you sure you want to logout?')) {
-        window.location.href = 'login.php';
-      }
+      // Add a global helper function for debugging
+      window.debugModels = function(makeId) {
+        console.log('=== DEBUG MODELS ===');
+        console.log('Requested make ID:', makeId);
+        console.log('Available keys:', Object.keys(allModels));
+        console.log('Models for this make:', allModels[makeId]);
+        console.log('===================');
+      };
     });
   </script>
+  <script src="assets/js/index.js"></script>
 </body>
 
 </html>
