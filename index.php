@@ -283,6 +283,7 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
   function getSettings($conn)
   {
     $settings = array();
+    $site_settings = getSettings($conn);
 
     // Use the correct column names: setting_key instead of setting_name
     $result = $conn->query("SELECT setting_key, setting_value FROM site_settings");
