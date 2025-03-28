@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@tailwindcss/cli": "^4.0.15",
+    "jspdf": "^3.0.1",
     "tailwindcss": "^4.0.15"
   }
 }
