@@ -1,3 +1,85 @@
+<?php
+session_start();
+// Include database connection
+require_once 'config/db.php';
+
+// Get vehicle ID from URL parameter
+$vehicle_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+// Redirect to index if no ID provided
+if ($vehicle_id <= 0) {
+  header("Location: index.php");
+  exit;
+}
+
+// Function to get vehicle details
+function getVehicleDetails($conn, $vehicle_id)
+{
+  $query = "SELECT v.*, 
+                m.name as make_name,
+                vs.name as status_name, 
+                vs.css_class as status_class 
+            FROM vehicles v
+            LEFT JOIN makes m ON v.make = m.name
+            LEFT JOIN vehicle_status vs ON v.status = vs.name
+            WHERE v.id = ?";
+
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $vehicle_id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  if ($result->num_rows == 0) {
+    return null;
+  }
+
+  $vehicle = $result->fetch_assoc();
+  $stmt->close();
+  return $vehicle;
+}
+
+// Function to get vehicle images
+function getVehicleImages($conn, $vehicle_id)
+{
+  $query = "SELECT * FROM vehicle_images WHERE vehicle_id = ? ORDER BY is_primary DESC, display_order ASC";
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $vehicle_id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  $images = [];
+  while ($row = $result->fetch_assoc()) {
+    $images[] = $row;
+  }
+
+  $stmt->close();
+  return $images;
+}
+
+// Get vehicle details
+$vehicle = getVehicleDetails($conn, $vehicle_id);
+
+// Redirect to index if vehicle not found
+if ($vehicle === null) {
+  header("Location: index.php");
+  exit;
+}
+
+// Get vehicle images
+$images = getVehicleImages($conn, $vehicle_id);
+
+// Default image if no images found
+$defaultImage = "assets/images/placeholder.jpg";
+$primaryImage = $defaultImage;
+
+if (!empty($images)) {
+  $primaryImage = $images[0]['image_path'];
+}
+
+// Vehicle title for SEO
+$pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model'] . ' - CentralAutogy';
+?>
+
 <!doctype html>
 <html>
 
@@ -5,7 +87,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
-  <title>Toyota Camry 2022 - CentralAutogy</title>
+  <title><?php echo htmlspecialchars($pageTitle); ?></title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -115,7 +197,7 @@
               <svg class="w-3 h-3 text-gray-400 mx-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
               </svg>
-              <span class="text-gray-500 text-sm">Toyota Camry 2022</span>
+              <span class="text-gray-500 text-sm"><?php echo htmlspecialchars($vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']); ?></span>
             </div>
           </li>
         </ol>
@@ -126,15 +208,25 @@
     <div class="flex flex-col md:flex-row justify-between items-start mb-6">
       <div>
         <div class="mb-1 flex items-center">
-          <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium mr-2">Available</span>
-          <span class="text-gray-500 text-sm">Stock #: TC22-12450</span>
+          <span class="<?php echo !empty($vehicle['status_class']) ? htmlspecialchars($vehicle['status_class']) : 'bg-green-100 text-green-800'; ?> text-xs px-2 py-1 rounded-full font-medium mr-2">
+            <?php echo htmlspecialchars($vehicle['status']); ?>
+          </span>
+          <?php if (!empty($vehicle['vin'])): ?>
+            <span class="text-gray-500 text-sm">VIN: <?php echo htmlspecialchars($vehicle['vin']); ?></span>
+          <?php endif; ?>
         </div>
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-1">Toyota Camry (2022)</h1>
-        <p class="text-gray-600">LE Sedan 4D • Pearl White • Black Interior</p>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-1">
+          <?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model'] . ' (' . $vehicle['year'] . ')'); ?>
+        </h1>
+        <p class="text-gray-600">
+          <?php echo htmlspecialchars($vehicle['body_style'] . ' • ' . $vehicle['exterior_color'] . ' • ' . $vehicle['interior_color'] . ' Interior'); ?>
+        </p>
       </div>
       <div class="mt-4 md:mt-0">
-        <div class="text-2xl md:text-3xl font-bold text-indigo-600">$24,990</div>
-        <div class="text-gray-500 text-sm">Est. $450/month*</div>
+        <div class="text-2xl md:text-3xl font-bold text-indigo-600">$<?php echo number_format($vehicle['price'], 0); ?></div>
+        <div class="text-gray-500 text-sm">
+          Est. $<?php echo number_format($vehicle['price'] / 60, 0); ?>/month*
+        </div>
       </div>
     </div>
 
@@ -145,16 +237,20 @@
         <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
           <!-- Main Image -->
           <div class="relative aspect-video">
-            <img id="mainImage" src="https://images.unsplash.com/photo-1550355291-bbee04a92027?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGNhcnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=1200&q=80" alt="Toyota Camry" class="w-full h-full object-cover">
+            <img id="mainImage" src="<?php echo htmlspecialchars($primaryImage); ?>" alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?>" class="w-full h-full object-cover">
           </div>
 
           <!-- Thumbnails -->
           <div class="grid grid-cols-5 gap-2 p-2">
-            <img src="https://images.unsplash.com/photo-1550355291-bbee04a92027?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGNhcnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=300&q=80" alt="Toyota Camry Front" class="gallery-thumb active aspect-video object-cover rounded">
-            <img src="https://images.unsplash.com/photo-1632245889029-da8fefe6dcf8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRveW90YSUyMGNhbXJ5fGVufDB8fDB8fHww&auto=format&fit=crop&w=300&q=80" alt="Toyota Camry Interior" class="gallery-thumb aspect-video object-cover rounded">
-            <img src="https://images.unsplash.com/photo-1620674161452-0a97f0a75734?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHRveW90YSUyMGNhbXJ5fGVufDB8fDB8fHww&auto=format&fit=crop&w=300&q=80" alt="Toyota Camry Rear" class="gallery-thumb aspect-video object-cover rounded">
-            <img src="https://images.unsplash.com/photo-1567899806688-d0a624ec7bdd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fHRveW90YSUyMGNhbXJ5fGVufDB8fDB8fHww&auto=format&fit=crop&w=300&q=80" alt="Toyota Camry Side" class="gallery-thumb aspect-video object-cover rounded">
-            <img src="https://images.unsplash.com/photo-1592803816834-15690445fe6d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fHRveW90YSUyMGNhbXJ5JTIwaW50ZXJpb3J8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=300&q=80" alt="Toyota Camry Dashboard" class="gallery-thumb aspect-video object-cover rounded">
+            <?php if (empty($images)): ?>
+              <img src="<?php echo htmlspecialchars($defaultImage); ?>" alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?> - No Image" class="gallery-thumb active aspect-video object-cover rounded">
+            <?php else: ?>
+              <?php foreach (array_slice($images, 0, 5) as $index => $image): ?>
+                <img src="<?php echo htmlspecialchars($image['image_path']); ?>"
+                  alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?>"
+                  class="gallery-thumb <?php echo $index === 0 ? 'active' : ''; ?> aspect-video object-cover rounded">
+              <?php endforeach; ?>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -171,13 +267,23 @@
           <div class="p-6">
             <!-- Description Tab -->
             <div id="description" class="tab-content active">
-              <p class="text-gray-700 mb-4">This 2022 Toyota Camry LE is in excellent condition with only 12,450 miles. It features a fuel-efficient 2.5L 4-cylinder engine paired with an 8-speed automatic transmission, providing a perfect balance of performance and efficiency.</p>
-
-              <p class="text-gray-700 mb-4">The exterior features a sleek Pearl White finish that's sure to turn heads, while the Black interior provides a comfortable and stylish cabin space. This Camry comes equipped with Toyota's Safety Sense package, including lane departure alert, dynamic radar cruise control, and pre-collision system.</p>
-
-              <p class="text-gray-700 mb-4">Perfect for daily commuting or family trips, this Toyota Camry offers reliability, comfort, and modern technology at an affordable price. Don't miss the opportunity to own one of America's most trusted sedans.</p>
-
-              <p class="text-gray-700 mb-4">Clean title, one owner, and detailed service history available. Schedule a test drive today!</p>
+              <?php if (!empty($vehicle['description'])): ?>
+                <?php
+                // Split description into paragraphs
+                $paragraphs = explode("\n", $vehicle['description']);
+                foreach ($paragraphs as $paragraph):
+                  if (trim($paragraph) !== ''):
+                ?>
+                    <p class="text-gray-700 mb-4"><?php echo htmlspecialchars($paragraph); ?></p>
+                <?php
+                  endif;
+                endforeach;
+                ?>
+              <?php else: ?>
+                <p class="text-gray-700 mb-4">This <?php echo htmlspecialchars($vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']); ?> comes equipped with a <?php echo htmlspecialchars($vehicle['engine']); ?> engine and <?php echo htmlspecialchars($vehicle['transmission']); ?> transmission.</p>
+                <p class="text-gray-700 mb-4">The exterior features a sleek <?php echo htmlspecialchars($vehicle['exterior_color']); ?> finish, while the <?php echo htmlspecialchars($vehicle['interior_color']); ?> interior provides a comfortable and stylish cabin space.</p>
+                <p class="text-gray-700 mb-4">With only <?php echo number_format($vehicle['mileage']); ?> miles, this vehicle offers excellent value and reliability. Contact us today to schedule a test drive!</p>
+              <?php endif; ?>
             </div>
 
             <!-- Features Tab -->
@@ -190,37 +296,31 @@
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Dual-Zone Automatic Climate Control
+                      <?php echo $vehicle['transmission']; ?>
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      7-inch Touchscreen Infotainment System
+                      <?php echo $vehicle['interior_color']; ?> Interior
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Apple CarPlay & Android Auto
+                      Infotainment System
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Fabric-Trimmed Seats
+                      Climate Control
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Power Driver's Seat with Lumbar Support
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Bluetooth Connectivity
+                      Power Windows/Locks
                     </li>
                   </ul>
                 </div>
@@ -232,37 +332,31 @@
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Toyota Safety Sense 2.0
+                      Anti-lock Braking System
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Pre-Collision System with Pedestrian Detection
+                      Electronic Stability Control
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
-                      Lane Departure Alert with Steering Assist
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Dynamic Radar Cruise Control
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Automatic High Beams
+                      Airbag System
                     </li>
                     <li class="flex items-center text-gray-700">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
                       Backup Camera
+                    </li>
+                    <li class="flex items-center text-gray-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                      Bluetooth Connectivity
                     </li>
                   </ul>
                 </div>
@@ -278,59 +372,51 @@
                     <tbody>
                       <tr class="border-b">
                         <td class="py-2 text-gray-600">Engine</td>
-                        <td class="py-2 text-gray-800 font-medium">2.5L 4-Cylinder</td>
-                      </tr>
-                      <tr class="border-b">
-                        <td class="py-2 text-gray-600">Horsepower</td>
-                        <td class="py-2 text-gray-800 font-medium">203 hp @ 6,600 rpm</td>
-                      </tr>
-                      <tr class="border-b">
-                        <td class="py-2 text-gray-600">Torque</td>
-                        <td class="py-2 text-gray-800 font-medium">184 lb-ft @ 5,000 rpm</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['engine']); ?></td>
                       </tr>
                       <tr class="border-b">
                         <td class="py-2 text-gray-600">Transmission</td>
-                        <td class="py-2 text-gray-800 font-medium">8-Speed Automatic</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['transmission']); ?></td>
                       </tr>
                       <tr class="border-b">
                         <td class="py-2 text-gray-600">Drive Type</td>
-                        <td class="py-2 text-gray-800 font-medium">Front-Wheel Drive</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['drivetrain']); ?></td>
+                      </tr>
+                      <tr class="border-b">
+                        <td class="py-2 text-gray-600">Fuel Type</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['fuel_type']); ?></td>
                       </tr>
                       <tr>
-                        <td class="py-2 text-gray-600">Fuel Economy</td>
-                        <td class="py-2 text-gray-800 font-medium">28 City / 39 Highway</td>
+                        <td class="py-2 text-gray-600">Mileage</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo number_format($vehicle['mileage']); ?> miles</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 <div>
-                  <h3 class="font-medium text-gray-800 mb-3">Dimensions & Capacity</h3>
+                  <h3 class="font-medium text-gray-800 mb-3">Dimensions & Details</h3>
                   <table class="w-full">
                     <tbody>
                       <tr class="border-b">
-                        <td class="py-2 text-gray-600">Length</td>
-                        <td class="py-2 text-gray-800 font-medium">192.1 inches</td>
+                        <td class="py-2 text-gray-600">Body Style</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['body_style']); ?></td>
                       </tr>
                       <tr class="border-b">
-                        <td class="py-2 text-gray-600">Width</td>
-                        <td class="py-2 text-gray-800 font-medium">72.4 inches</td>
+                        <td class="py-2 text-gray-600">Exterior Color</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['exterior_color']); ?></td>
                       </tr>
                       <tr class="border-b">
-                        <td class="py-2 text-gray-600">Height</td>
-                        <td class="py-2 text-gray-800 font-medium">56.9 inches</td>
+                        <td class="py-2 text-gray-600">Interior Color</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['interior_color']); ?></td>
                       </tr>
                       <tr class="border-b">
-                        <td class="py-2 text-gray-600">Wheelbase</td>
-                        <td class="py-2 text-gray-800 font-medium">111.2 inches</td>
-                      </tr>
-                      <tr class="border-b">
-                        <td class="py-2 text-gray-600">Seating Capacity</td>
-                        <td class="py-2 text-gray-800 font-medium">5 Passengers</td>
+                        <td class="py-2 text-gray-600">VIN</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['vin']); ?></td>
                       </tr>
                       <tr>
-                        <td class="py-2 text-gray-600">Cargo Volume</td>
-                        <td class="py-2 text-gray-800 font-medium">15.1 cubic feet</td>
+                        <td class="py-2 text-gray-600">Year</td>
+                        <td class="py-2 text-gray-800 font-medium"><?php echo htmlspecialchars($vehicle['year']); ?></td>
                       </tr>
                     </tbody>
                   </table>
@@ -346,7 +432,7 @@
         <!-- Action Buttons -->
         <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <a href="#" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg font-medium transition-colors text-center shadow-sm flex items-center justify-center">
+            <a href="#contact-form" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg font-medium transition-colors text-center shadow-sm flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 7V3z" />
               </svg>
@@ -376,8 +462,8 @@
           </div>
         </div>
         <!-- Booking Form -->
-        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h3 class="font-semibold text-gray-800 text-lg mb-4">Book This Vehicle</h3>
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6" id="contact-form">
+          <h3 class="font-semibold text-gray-800 text-lg mb-4">Interested in this Vehicle?</h3>
           <form id="bookingForm">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -393,19 +479,6 @@
                 <input type="tel" id="phone" name="phone" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
               <div>
-                <label for="pickupDate" class="block text-sm font-medium text-gray-700 mb-1">Preferred Pickup Date</label>
-                <input type="date" id="pickupDate" name="pickupDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              </div>
-              <div>
-                <label for="financingNeeded" class="block text-sm font-medium text-gray-700 mb-1">Financing Needed?</label>
-                <select id="financingNeeded" name="financingNeeded" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">Select an option</option>
-                  <option value="yes">Yes, I need financing</option>
-                  <option value="no">No, I'll pay in full</option>
-                  <option value="unsure">I need more information</option>
-                </select>
-              </div>
-              <div>
                 <label for="contactMethod" class="block text-sm font-medium text-gray-700 mb-1">Preferred Contact Method</label>
                 <select id="contactMethod" name="contactMethod" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="">Select an option</option>
@@ -417,7 +490,7 @@
             </div>
 
             <div class="mb-4">
-              <label for="additionalInfo" class="block text-sm font-medium text-gray-700 mb-1">Special Requests or Questions</label>
+              <label for="additionalInfo" class="block text-sm font-medium text-gray-700 mb-1">Questions or Comments</label>
               <textarea id="additionalInfo" name="additionalInfo" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
             </div>
 
@@ -429,7 +502,7 @@
             </div>
 
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium transition-colors shadow-sm">
-              Reserve This Vehicle
+              Contact About This Vehicle
             </button>
           </form>
         </div>
@@ -440,42 +513,42 @@
           <div class="grid grid-cols-2 gap-4">
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Mileage</div>
-              <div class="font-medium text-gray-800">12,450 mi</div>
+              <div class="font-medium text-gray-800"><?php echo number_format($vehicle['mileage']); ?> mi</div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Year</div>
-              <div class="font-medium text-gray-800">2022</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['year']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Engine</div>
-              <div class="font-medium text-gray-800">2.5L 4-Cylinder</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['engine']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Transmission</div>
-              <div class="font-medium text-gray-800">8-Speed Auto</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['transmission']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Fuel Type</div>
-              <div class="font-medium text-gray-800">Gasoline</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['fuel_type']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Drive Type</div>
-              <div class="font-medium text-gray-800">FWD</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['drivetrain']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Ext. Color</div>
-              <div class="font-medium text-gray-800">Pearl White</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['exterior_color']); ?></div>
             </div>
 
             <div class="feature-card bg-gray-50 p-3 rounded-lg">
               <div class="text-xs text-gray-500 mb-1">Int. Color</div>
-              <div class="font-medium text-gray-800">Black</div>
+              <div class="font-medium text-gray-800"><?php echo htmlspecialchars($vehicle['interior_color']); ?></div>
             </div>
           </div>
         </div>
@@ -487,183 +560,82 @@
       <h2 class="text-2xl font-bold text-gray-800 mb-6">Similar Vehicles</h2>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Similar Car 1 -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div class="relative">
-            <img src="https://images.unsplash.com/photo-1583267746897-2cf415887172?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YXVkaSUyMGNhcnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=600&q=60" alt="Audi A4" class="w-full h-48 object-cover">
-          </div>
-          <div class="p-4">
-            <div class="mb-1">
-              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Available</span>
-            </div>
-            <h3 class="font-semibold text-gray-800">Audi A4</h3>
-            <p class="text-gray-600 text-sm mb-2">2022 · 7,200 mi · Gasoline</p>
-            <div class="flex justify-between items-end">
-              <div>
-                <p class="text-indigo-600 font-semibold text-lg">$42,100</p>
-              </div>
-              <a href="#" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
-            </div>
-          </div>
-        </div>
+        <?php
+        // Get similar vehicles based on make, model, or body style
+        $similarQuery = "SELECT v.*, vs.css_class as status_class FROM vehicles v
+                         LEFT JOIN vehicle_status vs ON v.status = vs.name
+                         WHERE v.id != ? 
+                         AND (v.make = ? OR v.body_style = ?)
+                         AND v.status = 'Available'
+                         LIMIT 4";
 
-        <!-- Similar Car 2 -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div class="relative">
-            <img src="https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGhvbmRhJTIwYWNjb3JkfGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60" alt="Honda Accord" class="w-full h-48 object-cover">
-          </div>
-          <div class="p-4">
-            <div class="mb-1">
-              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Available</span>
-            </div>
-            <h3 class="font-semibold text-gray-800">Honda Accord</h3>
-            <p class="text-gray-600 text-sm mb-2">2021 · 22,100 mi · Gasoline</p>
-            <div class="flex justify-between items-end">
-              <div>
-                <p class="text-indigo-600 font-semibold text-lg">$26,900</p>
-              </div>
-              <a href="#" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
-            </div>
-          </div>
-        </div>
+        $similarStmt = $conn->prepare($similarQuery);
+        $similarStmt->bind_param("iss", $vehicle_id, $vehicle['make'], $vehicle['body_style']);
+        $similarStmt->execute();
+        $similarResult = $similarStmt->get_result();
 
-        <!-- Similar Car 3 -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div class="relative">
-            <img src="https://images.unsplash.com/photo-1619767886558-efdc259cde1a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8bmlzc2FuJTIwYWx0aW1hfGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60" alt="Nissan Altima" class="w-full h-48 object-cover">
-          </div>
-          <div class="p-4">
-            <div class="mb-1">
-              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Available</span>
-            </div>
-            <h3 class="font-semibold text-gray-800">Nissan Altima</h3>
-            <p class="text-gray-600 text-sm mb-2">2022 · 15,700 mi · Gasoline</p>
-            <div class="flex justify-between items-end">
-              <div>
-                <p class="text-indigo-600 font-semibold text-lg">$23,450</p>
-              </div>
-              <a href="#" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
-            </div>
-          </div>
-        </div>
+        if ($similarResult->num_rows > 0) {
+          while ($similarVehicle = $similarResult->fetch_assoc()):
+            // Get primary image for similar vehicle
+            $imageQuery = "SELECT image_path FROM vehicle_images WHERE vehicle_id = ? LIMIT 1";
+            $imageStmt = $conn->prepare($imageQuery);
+            $imageStmt->bind_param("i", $similarVehicle['id']);
+            $imageStmt->execute();
+            $imageResult = $imageStmt->get_result();
 
-        <!-- Similar Car 4 -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div class="relative">
-            <img src="https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fG1hemRhfGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60" alt="Mazda 6" class="w-full h-48 object-cover">
-          </div>
-          <div class="p-4">
-            <div class="mb-1">
-              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Available</span>
-            </div>
-            <h3 class="font-semibold text-gray-800">Mazda 6</h3>
-            <p class="text-gray-600 text-sm mb-2">2021 · 18,200 mi · Gasoline</p>
-            <div class="flex justify-between items-end">
-              <div>
-                <p class="text-indigo-600 font-semibold text-lg">$25,300</p>
+            $similarImage = $defaultImage;
+            if ($imageResult->num_rows > 0) {
+              $imageRow = $imageResult->fetch_assoc();
+              $similarImage = $imageRow['image_path'];
+            }
+            $imageStmt->close();
+        ?>
+            <!-- Similar Car Card -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div class="relative">
+                <img src="<?php echo htmlspecialchars($similarImage); ?>"
+                  alt="<?php echo htmlspecialchars($similarVehicle['year'] . ' ' . $similarVehicle['make'] . ' ' . $similarVehicle['model']); ?>"
+                  class="w-full h-48 object-cover">
               </div>
-              <a href="#" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
+              <div class="p-4">
+                <div class="mb-1">
+                  <span class="<?php echo !empty($similarVehicle['status_class']) ? htmlspecialchars($similarVehicle['status_class']) : 'bg-green-100 text-green-800'; ?> text-xs px-2 py-1 rounded-full font-medium">
+                    <?php echo htmlspecialchars($similarVehicle['status']); ?>
+                  </span>
+                </div>
+                <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($similarVehicle['make'] . ' ' . $similarVehicle['model']); ?></h3>
+                <p class="text-gray-600 text-sm mb-2">
+                  <?php echo htmlspecialchars($similarVehicle['year']); ?> ·
+                  <?php echo number_format($similarVehicle['mileage']); ?> mi ·
+                  <?php echo htmlspecialchars($similarVehicle['fuel_type']); ?>
+                </p>
+                <div class="flex justify-between items-end">
+                  <div>
+                    <p class="text-indigo-600 font-semibold text-lg">$<?php echo number_format($similarVehicle['price']); ?></p>
+                  </div>
+                  <a href="car-details.php?id=<?php echo $similarVehicle['id']; ?>" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+        <?php
+          endwhile;
+        } else {
+          // If no similar vehicles found, show a message
+          echo '<div class="col-span-full text-center py-4">';
+          echo '<p class="text-gray-600">No similar vehicles currently available.</p>';
+          echo '</div>';
+        }
+
+        // Close statement
+        $similarStmt->close();
+        ?>
       </div>
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="bg-gray-800 text-white pt-12 pb-8">
-    <div class="container mx-auto px-4">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <!-- Company Info -->
-        <div>
-          <div class="flex items-center space-x-2 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-              <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-            </svg>
-            <h3 class="text-lg font-bold">CentralAutogy</h3>
-          </div>
-          <p class="text-gray-400 mb-4">Your one-stop destination for finding the perfect vehicle. We provide a wide selection of high-quality cars at competitive prices.</p>
-        </div>
-
-        <!-- Quick Links -->
-        <div>
-          <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
-          <ul class="space-y-2">
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Home</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Browse Inventory</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Financing Options</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">About Us</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
-          </ul>
-        </div>
-
-        <!-- Contact Info -->
-        <div>
-          <h4 class="text-lg font-semibold mb-4">Contact Us</h4>
-          <ul class="space-y-3">
-            <li class="flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-              </svg>
-              <span class="text-gray-400">1234 Auto Lane, Car City, ST 12345</span>
-            </li>
-            <li class="flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 7V3z" />
-              </svg>
-              <span class="text-gray-400">(555) 123-4567</span>
-            </li>
-            <li class="flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-              </svg>
-              <span class="text-gray-400">info@centralautogy.com</span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Newsletter -->
-        <div>
-          <h4 class="text-lg font-semibold mb-4">Newsletter</h4>
-          <p class="text-gray-400 mb-4">Subscribe to our newsletter for the latest updates on new inventory and special offers.</p>
-          <form class="mb-2">
-            <div class="flex">
-              <input type="email" placeholder="Your email address" class="px-4 py-2 w-full rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800">
-              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-r-lg text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="border-t border-gray-700 mt-10 pt-6">
-        <div class="flex flex-col md:flex-row justify-between items-center">
-          <p class="text-gray-400 text-sm">&copy; 2023 CentralAutogy. All rights reserved.</p>
-          <div class="mt-4 md:mt-0">
-            <div class="flex space-x-4">
-              <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</a>
-              <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </footer>
+  <?php include 'includes/footer.php'; ?>
 
   <script>
-    // Mobile menu toggle
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-    const mobileMenu = document.getElementById('mobileMenu');
-
-    mobileMenuBtn.addEventListener('click', function() {
-      mobileMenu.classList.toggle('hidden');
-    });
-
     // Gallery thumbnails
     const galleryThumbs = document.querySelectorAll('.gallery-thumb');
     const mainImage = document.getElementById('mainImage');
@@ -677,7 +649,7 @@
         this.classList.add('active');
 
         // Update main image
-        mainImage.src = this.src.replace('w=300', 'w=1200');
+        mainImage.src = this.src;
       });
     });
 
@@ -699,38 +671,30 @@
       });
     });
 
-    // Financing Calculator
-    const vehiclePrice = document.getElementById('vehiclePrice');
-    const downPayment = document.getElementById('downPayment');
-    const term = document.getElementById('term');
-    const interestRate = document.getElementById('interestRate');
-    const monthlyPayment = document.getElementById('monthlyPayment');
+    // Form submission with validation
+    const bookingForm = document.getElementById('bookingForm');
 
-    function calculatePayment() {
-      const principal = parseFloat(vehiclePrice.value) - parseFloat(downPayment.value);
-      const monthlyRate = parseFloat(interestRate.value) / 100 / 12;
-      const numberOfPayments = parseInt(term.value);
+    if (bookingForm) {
+      bookingForm.addEventListener('submit', function(e) {
+        e.preventDefault();
 
-      // Monthly payment formula: P * (r(1+r)^n) / ((1+r)^n - 1)
-      if (monthlyRate === 0) {
-        // If interest rate is 0, simple division
-        const payment = principal / numberOfPayments;
-        monthlyPayment.textContent = '$' + payment.toFixed(0);
-      } else {
-        const x = Math.pow(1 + monthlyRate, numberOfPayments);
-        const payment = (principal * x * monthlyRate) / (x - 1);
-        monthlyPayment.textContent = '$' + payment.toFixed(0);
-      }
+        // Simple form validation
+        const fullName = document.getElementById('fullName').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const contactMethod = document.getElementById('contactMethod').value;
+
+        if (!fullName || !email || !phone || !contactMethod) {
+          alert('Please fill out all required fields.');
+          return;
+        }
+
+        // Here you would normally submit the form via AJAX
+        // For demo purposes, just show a confirmation message
+        alert('Thank you for your interest! A representative will contact you shortly.');
+        this.reset();
+      });
     }
-
-    // Calculate payment when inputs change
-    vehiclePrice.addEventListener('input', calculatePayment);
-    downPayment.addEventListener('input', calculatePayment);
-    term.addEventListener('change', calculatePayment);
-    interestRate.addEventListener('input', calculatePayment);
-
-    // Calculate initial payment
-    calculatePayment();
   </script>
 </body>
 
