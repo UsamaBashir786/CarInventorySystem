@@ -417,19 +417,19 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
         <!-- Popular searches -->
         <div class="flex flex-wrap gap-2 mt-4">
           <span class="text-xs text-white/80">Popular:</span>
-          <?php foreach (array_slice($filterOptions['makes'], 0, 5) as $make): ?>
+          <?php foreach (array_slice($filterOptions['makes'], 0, min(5, count($filterOptions['makes']))) as $make): ?>
             <a href="index.php?filter_make=<?php echo $make['id']; ?>" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors">
               <?php echo htmlspecialchars($make['name']); ?>
             </a>
           <?php endforeach; ?>
 
-          <?php if (!empty($filterOptions['bodyTypes'])): ?>
+          <?php if (!empty($filterOptions['bodyTypes']) && isset($filterOptions['bodyTypes'][1])): ?>
             <a href="index.php?filter_body_type=<?php echo $filterOptions['bodyTypes'][1]['id']; ?>" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors">
               <?php echo htmlspecialchars($filterOptions['bodyTypes'][1]['name']); ?>s
             </a>
           <?php endif; ?>
 
-          <?php if (!empty($filterOptions['fuelTypes']) && count($filterOptions['fuelTypes']) >= 3): ?>
+          <?php if (!empty($filterOptions['fuelTypes']) && count($filterOptions['fuelTypes']) >= 3 && isset($filterOptions['fuelTypes'][2])): ?>
             <a href="index.php?filter_fuel_type=<?php echo $filterOptions['fuelTypes'][2]['id']; ?>" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors">
               <?php echo htmlspecialchars($filterOptions['fuelTypes'][2]['name']); ?>
             </a>
