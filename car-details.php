@@ -41,7 +41,18 @@ function getVehicleDetails($conn, $vehicle_id)
 // Function to get vehicle images
 function getVehicleImages($conn, $vehicle_id)
 {
-  $query = "SELECT * FROM vehicle_images WHERE vehicle_id = ? ORDER BY is_primary DESC, display_order ASC";
+  // Check if display_order column exists in the vehicle_images table
+  $checkColumnQuery = "SHOW COLUMNS FROM vehicle_images LIKE 'display_order'";
+  $checkResult = $conn->query($checkColumnQuery);
+
+  if ($checkResult && $checkResult->num_rows > 0) {
+    // If the display_order column exists, use it in the query
+    $query = "SELECT * FROM vehicle_images WHERE vehicle_id = ? ORDER BY is_primary DESC, display_order ASC";
+  } else {
+    // If display_order doesn't exist, just use is_primary for ordering
+    $query = "SELECT * FROM vehicle_images WHERE vehicle_id = ? ORDER BY is_primary DESC";
+  }
+
   $stmt = $conn->prepare($query);
   $stmt->bind_param("i", $vehicle_id);
   $stmt->execute();
@@ -455,7 +466,7 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
             </a>
             <a href="#" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
               Download Brochure
             </a>
@@ -671,7 +682,7 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
       });
     });
 
-    // Form submission with validation
+    // Form submission with AJAX
     const bookingForm = document.getElementById('bookingForm');
 
     if (bookingForm) {
@@ -683,16 +694,69 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
         const email = document.getElementById('email').value.trim();
         const phone = document.getElementById('phone').value.trim();
         const contactMethod = document.getElementById('contactMethod').value;
+        const additionalInfo = document.getElementById('additionalInfo').value.trim();
+        const termsAgreed = document.querySelector('input[name="termsAgree"]').checked;
+        const vehicleId = <?php echo $vehicle_id; ?>;
 
-        if (!fullName || !email || !phone || !contactMethod) {
-          alert('Please fill out all required fields.');
+        if (!fullName || !email || !phone || !contactMethod || !termsAgreed) {
+          alert('Please fill out all required fields and agree to the terms and conditions.');
           return;
         }
 
-        // Here you would normally submit the form via AJAX
-        // For demo purposes, just show a confirmation message
-        alert('Thank you for your interest! A representative will contact you shortly.');
-        this.reset();
+        // Create form data object
+        const formData = new FormData();
+        formData.append('vehicle_id', vehicleId);
+        formData.append('full_name', fullName);
+        formData.append('email', email);
+        formData.append('phone', phone);
+        formData.append('contact_method', contactMethod);
+        formData.append('message', additionalInfo);
+        formData.append('terms_agreed', termsAgreed ? 1 : 0);
+
+        // Show loading indicator
+        const submitBtn = bookingForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Sending...';
+
+        // Send AJAX request
+        fetch('process_inquiry.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Show success message
+              bookingForm.innerHTML = `
+              <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-green-700">
+                      Thank you for your interest! A representative will contact you shortly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            `;
+            } else {
+              // Show error message
+              alert('There was an error submitting your inquiry. Please try again or contact us directly.');
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = originalBtnText;
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('There was an error submitting your inquiry. Please try again or contact us directly.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+          });
       });
     }
   </script>
