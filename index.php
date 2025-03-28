@@ -278,12 +278,35 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
 <html>
 
 <head>
+  <?php
+  // Function to get settings from database
+  function getSettings($conn)
+  {
+    $settings = array();
+
+    // Use the correct column names: setting_key instead of setting_name
+    $result = $conn->query("SELECT setting_key, setting_value FROM site_settings");
+
+    if ($result) {
+      while ($row = $result->fetch_assoc()) {
+        // Store settings with key as the array key for easy access
+        $settings[$row['setting_key']] = $row['setting_value'];
+      }
+    }
+
+    return $settings;
+  }
+  ?>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
-  <title>CentralAutogy - Find Your Perfect Car</title>
-  <link rel="shortcut icon" href="assets/img/fav.png" type="image/x-icon">
-  <link rel="stylesheet" href="assets/css/index.css">
+  <title><?php echo htmlspecialchars($site_settings['site_name'] ?? 'CentralAutogy'); ?> - <?php echo $page_title ?? 'Car Inventory Management'; ?></title>
+
+  <?php if (!empty($site_settings['favicon_path'])): ?>
+    <link rel="shortcut icon" href="<?php echo '/' . $site_settings['favicon_path']; ?>" type="image/x-icon">
+  <?php else: ?>
+    <link rel="shortcut icon" href="assets/img/fav.png" type="image/x-icon">
+  <?php endif; ?>
   <style>
     /* Custom styles for the range slider */
     .range-slider {
