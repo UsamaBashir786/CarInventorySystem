@@ -282,6 +282,7 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
   <title>CentralAutogy - Find Your Perfect Car</title>
+  <link rel="shortcut icon" href="assets/img/fav.png" type="image/x-icon">
   <link rel="stylesheet" href="assets/css/index.css">
   <style>
     /* Custom styles for the range slider */

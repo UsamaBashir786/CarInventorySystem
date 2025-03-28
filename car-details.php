@@ -12,6 +12,18 @@ if ($vehicle_id <= 0) {
   exit;
 }
 
+// Check if vehicle is saved by the current user
+$is_saved = false;
+if (isset($_SESSION['user_id'])) {
+  $check_saved_query = "SELECT id FROM saved_vehicles WHERE user_id = ? AND vehicle_id = ?";
+  $check_stmt = $conn->prepare($check_saved_query);
+  $check_stmt->bind_param("ii", $_SESSION['user_id'], $vehicle_id);
+  $check_stmt->execute();
+  $saved_result = $check_stmt->get_result();
+  $is_saved = $saved_result->num_rows > 0;
+  $check_stmt->close();
+}
+
 // Function to get vehicle details
 function getVehicleDetails($conn, $vehicle_id)
 {
@@ -89,6 +101,30 @@ if (!empty($images)) {
 
 // Vehicle title for SEO
 $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model'] . ' - CentralAutogy';
+
+// Generate PDF brochure data
+$brochureData = array(
+  'id' => $vehicle['id'],
+  'make' => $vehicle['make'],
+  'model' => $vehicle['model'],
+  'year' => $vehicle['year'],
+  'price' => $vehicle['price'],
+  'mileage' => $vehicle['mileage'],
+  'vin' => $vehicle['vin'],
+  'status' => $vehicle['status'],
+  'engine' => $vehicle['engine'],
+  'transmission' => $vehicle['transmission'],
+  'fuel_type' => $vehicle['fuel_type'],
+  'drivetrain' => $vehicle['drivetrain'],
+  'body_style' => $vehicle['body_style'],
+  'exterior_color' => $vehicle['exterior_color'],
+  'interior_color' => $vehicle['interior_color'],
+  'description' => $vehicle['description'],
+  'image' => $primaryImage
+);
+
+// Encode for share functionality
+$shareData = json_encode($brochureData);
 ?>
 
 <!doctype html>
@@ -99,6 +135,12 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
   <title><?php echo htmlspecialchars($pageTitle); ?></title>
+  <!-- Open Graph tags for sharing -->
+  <meta property="og:title" content="<?php echo htmlspecialchars($pageTitle); ?>">
+  <meta property="og:description" content="<?php echo htmlspecialchars(substr($vehicle['description'], 0, 200) . '...'); ?>">
+  <meta property="og:image" content="<?php echo htmlspecialchars($primaryImage); ?>">
+  <meta property="og:url" content="<?php echo "https://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]"; ?>">
+  <meta property="og:type" content="website">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -179,6 +221,104 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
         opacity: 1;
         transform: translateY(0);
       }
+    }
+
+    /* Share modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal.show {
+      display: flex;
+      opacity: 1;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      max-width: 500px;
+      width: 90%;
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal.show .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .modal-close {
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    .share-option {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .share-option:hover {
+      background-color: #f3f4f6;
+    }
+
+    .share-icon {
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #4f46e5;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-icon {
+      margin-right: 0.75rem;
     }
   </style>
 </head>
@@ -449,27 +589,27 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
               </svg>
               Contact Seller
             </a>
-            <a href="#" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+            <button id="saveVehicleBtn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center <?php echo $is_saved ? 'text-red-600 hover:text-red-700' : ''; ?>">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 <?php echo $is_saved ? 'text-red-600' : 'text-indigo-600'; ?>" viewBox="0 0 20 20" fill="<?php echo $is_saved ? 'currentColor' : 'none'; ?>" stroke="currentColor">
                 <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
               </svg>
-              Save Vehicle
-            </a>
+              <span><?php echo $is_saved ? 'Saved' : 'Save Vehicle'; ?></span>
+            </button>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-            <a href="#" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
+            <button id="shareBtn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
               </svg>
               Share
-            </a>
-            <a href="#" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
+            </button>
+            <button id="downloadBrochureBtn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors text-center flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
               Download Brochure
-            </a>
+            </button>
           </div>
         </div>
         <!-- Booking Form -->
@@ -644,6 +784,74 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
     </div>
   </main>
 
+  <!-- Share Modal -->
+  <div id="shareModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-gray-800">Share this Vehicle</h3>
+        <button class="modal-close">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div>
+        <div class="share-option" data-type="facebook">
+          <div class="share-icon bg-blue-100 text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9.198 21.5h4v-8.01h3.604l.396-3.98h-4V7.5a1 1 0 011-1h3v-4h-3a5 5 0 00-5 5v2.01h-2l-.396 3.98h2.396v8.01z" />
+            </svg>
+          </div>
+          <span>Share on Facebook</span>
+        </div>
+        <div class="share-option" data-type="twitter">
+          <div class="share-icon bg-blue-100 text-blue-400">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
+            </svg>
+          </div>
+          <span>Share on Twitter</span>
+        </div>
+        <div class="share-option" data-type="whatsapp">
+          <div class="share-icon bg-green-100 text-green-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+            </svg>
+          </div>
+          <span>Share on WhatsApp</span>
+        </div>
+        <div class="share-option" data-type="email">
+          <div class="share-icon bg-gray-100 text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+          <span>Share via Email</span>
+        </div>
+        <div class="share-option" data-type="copy">
+          <div class="share-icon bg-gray-100 text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+            </svg>
+          </div>
+          <span>Copy Link</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div class="toast-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div id="toastMessage">Success message here</div>
+  </div>
+
   <?php include 'includes/footer.php'; ?>
 
   <script>
@@ -680,6 +888,159 @@ $pageTitle = $vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['model']
         this.classList.add('active');
         document.getElementById(tabId).classList.add('active');
       });
+    });
+
+    // Share functionality
+    const shareBtn = document.getElementById('shareBtn');
+    const shareModal = document.getElementById('shareModal');
+    const modalClose = document.querySelector('.modal-close');
+    const shareOptions = document.querySelectorAll('.share-option');
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+
+    // Show share modal
+    shareBtn.addEventListener('click', function() {
+      shareModal.classList.add('show');
+    });
+
+    // Close share modal
+    modalClose.addEventListener('click', function() {
+      shareModal.classList.remove('show');
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+      if (event.target === shareModal) {
+        shareModal.classList.remove('show');
+      }
+    });
+
+    // Share options handling
+    shareOptions.forEach(option => {
+      option.addEventListener('click', function() {
+        const shareType = this.getAttribute('data-type');
+        const url = window.location.href;
+        const title = "<?php echo addslashes($pageTitle); ?>";
+
+        switch (shareType) {
+          case 'facebook':
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+            break;
+          case 'twitter':
+            window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, '_blank');
+            break;
+          case 'whatsapp':
+            window.open(`https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}`, '_blank');
+            break;
+          case 'email':
+            window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent('Check out this vehicle: ' + url)}`;
+            break;
+          case 'copy':
+            navigator.clipboard.writeText(url).then(() => {
+              showToast('Link copied to clipboard!');
+            });
+            break;
+        }
+
+        shareModal.classList.remove('show');
+      });
+    });
+
+    // Show toast notification
+    function showToast(message) {
+      toastMessage.textContent = message;
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Save vehicle functionality
+    const saveVehicleBtn = document.getElementById('saveVehicleBtn');
+
+    saveVehicleBtn.addEventListener('click', function() {
+      <?php if (isset($_SESSION['user_id'])): ?>
+        const vehicleId = <?php echo $vehicle_id; ?>;
+        const isSaved = <?php echo $is_saved ? 'true' : 'false'; ?>;
+
+        fetch('save_vehicle.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `vehicle_id=${vehicleId}&action=${isSaved ? 'remove' : 'add'}`
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Update button appearance
+              if (isSaved) {
+                this.querySelector('svg').setAttribute('fill', 'none');
+                this.classList.remove('text-red-600', 'hover:text-red-700');
+                this.querySelector('span').textContent = 'Save Vehicle';
+                showToast('Vehicle removed from saved list');
+              } else {
+                this.querySelector('svg').setAttribute('fill', 'currentColor');
+                this.classList.add('text-red-600', 'hover:text-red-700');
+                this.querySelector('span').textContent = 'Saved';
+                showToast('Vehicle saved to your list');
+              }
+
+              // Refresh page to update the saved status
+              setTimeout(() => {
+                location.reload();
+              }, 1000);
+            } else {
+              showToast('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            showToast('Error saving vehicle. Please try again.');
+            console.error('Error:', error);
+          });
+      <?php else: ?>
+        // Redirect to login page if user is not logged in
+        window.location.href = 'login.php?redirect=<?php echo urlencode($_SERVER["REQUEST_URI"]); ?>';
+      <?php endif; ?>
+    });
+
+    // Download brochure functionality
+    const downloadBrochureBtn = document.getElementById('downloadBrochureBtn');
+
+    downloadBrochureBtn.addEventListener('click', function() {
+      const vehicleData = <?php echo $shareData; ?>;
+
+      fetch('generate_brochure.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(vehicleData)
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.blob();
+          }
+          throw new Error('Network response was not ok.');
+        })
+        .then(blob => {
+          // Create a link element
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `${vehicleData.year}_${vehicleData.make}_${vehicleData.model}_brochure.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+
+          showToast('Brochure downloaded successfully!');
+        })
+        .catch(error => {
+          showToast('Error generating brochure. Please try again.');
+          console.error('Error:', error);
+        });
     });
 
     // Form submission with AJAX
