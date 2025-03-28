@@ -364,11 +364,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['vehicle_id'])) {
   // Create the SQL query
   $sql = "UPDATE vehicles SET " . implode(", ", $sql_parts) . " WHERE id = ?";
 
-  // Debug - remove in production
-  // $_SESSION['debug_sql'] = $sql;
-  // $_SESSION['debug_types'] = $types;
-  // $_SESSION['debug_params'] = $params;
-
   $stmt = $conn->prepare($sql);
 
   if (!$stmt) {
@@ -483,64 +478,72 @@ function processVehicleImages($conn, $vehicle_id)
           $columns[] = $row['Field'];
         }
 
-        $sql_parts = [];
-        $types = "is"; // vehicle_id and image_path are always included
+        // Build the SQL statement properly
+        $columnNames = ["vehicle_id", "image_path"];
+        $placeholders = ["?", "?"];
         $params = [$vehicle_id, $image_path];
+        $types = "is"; // vehicle_id (int) and image_path (string)
 
-        $sql_parts[] = "vehicle_id";
-        $sql_parts[] = "image_path";
-
+        // Add optional columns if they exist in table
         if (in_array('original_filename', $columns)) {
-          $sql_parts[] = "original_filename";
-          $types .= "s";
+          $columnNames[] = "original_filename";
+          $placeholders[] = "?";
           $params[] = $original_name;
+          $types .= "s";
         }
 
         if (in_array('display_order', $columns)) {
-          $sql_parts[] = "display_order";
-          $types .= "i";
+          $columnNames[] = "display_order";
+          $placeholders[] = "?";
           $params[] = $display_order;
+          $types .= "i";
         }
 
         if (in_array('uploaded_by', $columns) && isset($_SESSION["admin_id"])) {
-          $sql_parts[] = "uploaded_by";
-          $types .= "i";
+          $columnNames[] = "uploaded_by";
+          $placeholders[] = "?";
           $params[] = $_SESSION["admin_id"];
+          $types .= "i";
         }
 
+        // Add timestamp columns
         if (in_array('uploaded_at', $columns)) {
-          $sql_parts[] = "uploaded_at";
-          $sql_parts[] = "NOW()";
-        } else {
-          $sql_parts[] = "created_at";
-          $sql_parts[] = "NOW()";
+          $columnNames[] = "uploaded_at";
+          $placeholders[] = "NOW()";
+        } else if (in_array('created_at', $columns)) {
+          $columnNames[] = "created_at";
+          $placeholders[] = "NOW()";
         }
 
-        $sql = "INSERT INTO vehicle_images (" . implode(", ", array_filter($sql_parts, function ($item) {
-          return $item !== "NOW()";
-        })) .
-          ") VALUES (" . implode(", ", array_map(function ($item) {
-            return ($item === "NOW()") ? $item : "?";
-          }, $sql_parts)) . ")";
+        // Construct final SQL query
+        $sql = "INSERT INTO vehicle_images (" . implode(", ", $columnNames) . ") VALUES (" . implode(", ", $placeholders) . ")";
 
+        // For debugging
+        // $_SESSION['debug_sql'] = $sql;
+
+        // Prepare statement
         $stmt = $conn->prepare($sql);
 
         if ($stmt) {
-          $refs = [];
-          foreach ($params as $key => $value) {
-            $refs[$key] = &$params[$key];
-          }
+          // Bind parameters (excluding the NOW() function)
+          if (!empty($params)) {
+            // Create references array for bind_param
+            $refs = [];
+            foreach ($params as $key => $value) {
+              $refs[$key] = &$params[$key];
+            }
 
-          // Call bind_param with dynamically created references
-          array_unshift($refs, $types);
-          call_user_func_array([$stmt, 'bind_param'], $refs);
+            // Call bind_param with dynamically created references
+            array_unshift($refs, $types);
+            call_user_func_array([$stmt, 'bind_param'], $refs);
+          }
 
           $stmt->execute();
           $stmt->close();
 
           $display_order++;
         } else {
-          $_SESSION['warnings'][] = "Failed to save image record for {$original_name}.";
+          $_SESSION['warnings'][] = "Failed to save image record for {$original_name}: " . $conn->error;
         }
       } else {
         $_SESSION['warnings'][] = "Failed to upload {$original_name}.";
