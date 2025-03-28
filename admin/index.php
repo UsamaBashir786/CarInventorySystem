@@ -136,9 +136,174 @@ $dropdowns = getDropdownOptions();
 // Load all models data for client-side filtering
 $allModels = [];
 foreach ($dropdowns['makes'] as $make) {
-  $makeId = $make['id'];
-  $allModels[$makeId] = getModelsByMakeId($makeId);
+  $makeId = (string)$make['id']; // Convert ID to string for JavaScript
+  $allModels[$makeId] = getModelsByMakeId($make['id']);
 }
+// Fixed function to match your actual database schema
+function getRecentInventory($limit = 5)
+{
+  $conn = getConnection();
+
+  // Direct query based on your actual database structure
+  $query = "SELECT 
+      id, 
+      CONCAT(make, ' ', model) AS vehicle_name,
+      year, 
+      mileage,
+      fuel_type,
+      status,
+      DATE_FORMAT(created_at, '%Y-%m-%d') AS date_added
+  FROM 
+      vehicles
+  ORDER BY 
+      created_at DESC
+  LIMIT ?";
+
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $limit);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  $vehicles = [];
+  if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+      // Map status to CSS class
+      $statusClass = 'bg-gray-100 text-gray-800';
+      switch (strtolower($row['status'])) {
+        case 'available':
+          $statusClass = 'bg-green-100 text-green-800';
+          break;
+        case 'sold':
+          $statusClass = 'bg-purple-100 text-purple-800';
+          break;
+        case 'pending':
+          $statusClass = 'bg-amber-100 text-amber-800';
+          break;
+        case 'reserved':
+          $statusClass = 'bg-blue-100 text-blue-800';
+          break;
+      }
+
+      // Add CSS class to the vehicle data
+      $row['css_class'] = $statusClass;
+
+      // Add to vehicles array
+      $vehicles[] = $row;
+    }
+  }
+
+  $stmt->close();
+  return $vehicles;
+}
+// Function to get total vehicle count - add this to your index.php file
+function getTotalVehicleCount()
+{
+  $conn = getConnection();
+
+  $query = "SELECT COUNT(*) as total FROM vehicles";
+  $result = $conn->query($query);
+
+  $total = 0;
+  if ($result && $result->num_rows > 0) {
+    $row = $result->fetch_assoc();
+    $total = $row['total'];
+  }
+
+  return $total;
+}
+
+// Process model deletion if form submitted
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_model'])) {
+  $modelId = (int)$_POST['model_id'];
+
+  // Start the deletion process
+  $conn = getConnection();
+  $success = false;
+  $errorMessage = "";
+
+  // Begin transaction
+  $conn->begin_transaction();
+
+  try {
+    // First, check if there are any vehicles using this model
+    $checkVehiclesQuery = "SELECT COUNT(*) as vehicle_count FROM vehicles WHERE model = (SELECT name FROM models WHERE id = ?)";
+    $stmt = $conn->prepare($checkVehiclesQuery);
+    $stmt->bind_param("i", $modelId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $vehicleCount = $result->fetch_assoc()['vehicle_count'];
+    $stmt->close();
+
+    if ($vehicleCount > 0) {
+      // Can't delete a model that's being used by vehicles
+      $errorMessage = "Cannot delete this model because it is being used by $vehicleCount vehicle(s). Please reassign or delete these vehicles first.";
+      throw new Exception($errorMessage);
+    }
+
+    // Get the model details for logging before deletion
+    $modelQuery = "SELECT m.name as model_name, m.make_id, mk.name as make_name 
+                  FROM models m
+                  JOIN makes mk ON m.make_id = mk.id
+                  WHERE m.id = ?";
+    $stmt = $conn->prepare($modelQuery);
+    $stmt->bind_param("i", $modelId);
+    $stmt->execute();
+    $modelResult = $stmt->get_result();
+    $modelDetails = $modelResult->fetch_assoc();
+    $stmt->close();
+
+    if (!$modelDetails) {
+      $errorMessage = "Model not found with ID: $modelId";
+      throw new Exception($errorMessage);
+    }
+
+    // Delete the model
+    $deleteModelQuery = "DELETE FROM models WHERE id = ?";
+    $stmt = $conn->prepare($deleteModelQuery);
+    $stmt->bind_param("i", $modelId);
+    $result = $stmt->execute();
+
+    if ($result && $stmt->affected_rows > 0) {
+      $success = true;
+      $_SESSION['success'] = "Model '" . $modelDetails['model_name'] . "' for " . $modelDetails['make_name'] . " deleted successfully.";
+    } else {
+      $errorMessage = "Failed to delete model. Error: " . $conn->error;
+      throw new Exception($errorMessage);
+    }
+
+    $stmt->close();
+    $conn->commit();
+  } catch (Exception $e) {
+    // If there was an exception, roll back the transaction
+    $conn->rollback();
+    $_SESSION['error'] = $e->getMessage();
+  }
+
+  $conn->close();
+  header("Location: models.php");
+  exit;
+}
+
+// Fetch all models for display
+$conn = getConnection();
+$models = [];
+
+$query = "SELECT m.id, m.name, m.display_order, mk.name as make_name, mk.id as make_id
+          FROM models m
+          JOIN makes mk ON m.make_id = mk.id
+          ORDER BY mk.name, m.display_order, m.name";
+
+$result = $conn->query($query);
+if ($result && $result->num_rows > 0) {
+  while ($row = $result->fetch_assoc()) {
+    $models[] = $row;
+  }
+}
+$conn->close();
+
+// Get recent inventory for display
+$recentVehicles = getRecentInventory(5);
+$totalVehicles = getTotalVehicleCount();
 ?>
 <!doctype html>
 <html>
@@ -190,136 +355,140 @@ foreach ($dropdowns['makes'] as $make) {
             </button>
           </div>
 
+          <!-- Updated table to match the output from the fixed getRecentInventory function -->
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="bg-gray-50">
                   <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 rounded-tl-lg">Car Name</th>
-                  <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Year/Make</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Year</th>
                   <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Mileage</th>
                   <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Fuel Type</th>
                   <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                  <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Date Added</th>
                   <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 rounded-tr-lg">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr class="border-b border-gray-100 table-row">
-                  <td class="px-4 py-3 text-gray-800">Toyota Camry</td>
-                  <td class="px-4 py-3 text-gray-800">2022 Toyota</td>
-                  <td class="px-4 py-3 text-gray-800">12,450</td>
-                  <td class="px-4 py-3 text-gray-800">Gasoline</td>
-                  <td class="px-4 py-3">
-                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Available</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex space-x-2">
-                      <button class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr class="border-b border-gray-100 table-row">
-                  <td class="px-4 py-3 text-gray-800">Honda Civic</td>
-                  <td class="px-4 py-3 text-gray-800">2021 Honda</td>
-                  <td class="px-4 py-3 text-gray-800">18,700</td>
-                  <td class="px-4 py-3 text-gray-800">Gasoline</td>
-                  <td class="px-4 py-3">
-                    <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium">In Transit</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex space-x-2">
-                      <button class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr class="border-b border-gray-100 table-row">
-                  <td class="px-4 py-3 text-gray-800">Tesla Model 3</td>
-                  <td class="px-4 py-3 text-gray-800">2023 Tesla</td>
-                  <td class="px-4 py-3 text-gray-800">2,100</td>
-                  <td class="px-4 py-3 text-gray-800">Electric</td>
-                  <td class="px-4 py-3">
-                    <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">Sold</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex space-x-2">
-                      <button class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr class="border-b border-gray-100 table-row">
-                  <td class="px-4 py-3 text-gray-800">Ford Mustang</td>
-                  <td class="px-4 py-3 text-gray-800">2022 Ford</td>
-                  <td class="px-4 py-3 text-gray-800">8,900</td>
-                  <td class="px-4 py-3 text-gray-800">Gasoline</td>
-                  <td class="px-4 py-3">
-                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Available</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex space-x-2">
-                      <button class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr class="border-b border-gray-100 table-row">
-                  <td class="px-4 py-3 text-gray-800">BMW X5</td>
-                  <td class="px-4 py-3 text-gray-800">2023 BMW</td>
-                  <td class="px-4 py-3 text-gray-800">3,200</td>
-                  <td class="px-4 py-3 text-gray-800">Diesel</td>
-                  <td class="px-4 py-3">
-                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Available</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex space-x-2">
-                      <button class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                      <button class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <?php if (empty($recentVehicles)): ?>
+                  <tr class="border-b border-gray-100">
+                    <td colspan="7" class="px-4 py-5 text-center text-gray-600">No vehicles found</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($recentVehicles as $vehicle): ?>
+                    <tr class="border-b border-gray-100 table-row">
+                      <td class="px-4 py-3 text-gray-800"><?php echo htmlspecialchars($vehicle['vehicle_name']); ?></td>
+                      <td class="px-4 py-3 text-gray-800"><?php echo htmlspecialchars($vehicle['year']); ?></td>
+                      <td class="px-4 py-3 text-gray-800"><?php echo number_format($vehicle['mileage']); ?></td>
+                      <td class="px-4 py-3 text-gray-800"><?php echo htmlspecialchars($vehicle['fuel_type']); ?></td>
+                      <td class="px-4 py-3">
+                        <span class="px-3 py-1 <?php echo htmlspecialchars($vehicle['css_class']); ?> rounded-full text-xs font-medium">
+                          <?php echo htmlspecialchars($vehicle['status']); ?>
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800"><?php echo htmlspecialchars($vehicle['date_added']); ?></td>
+                      <td class="px-4 py-3">
+                        <div class="flex space-x-2">
+                          <a href="edit_vehicle_form.php?id=<?php echo $vehicle['id']; ?>" class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all" title="Edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </a>
+                          <button onclick="confirmDelete(<?php echo $vehicle['id']; ?>, '<?php echo addslashes($vehicle['year'] . ' ' . $vehicle['vehicle_name']); ?>')" class="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                          </button>
+                          <a href="vehicle_details.php?id=<?php echo $vehicle['id']; ?>" class="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all" title="View Details">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                            </svg>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
               </tbody>
             </table>
+          </div>
+          <!-- Add this modal HTML code just before the closing </body> tag in your index.php file -->
+
+          <!-- Delete Vehicle Confirmation Modal -->
+          <div id="deleteVehicleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white rounded-xl w-full max-w-md mx-auto shadow-2xl p-6">
+                <div class="flex items-center justify-center mb-4">
+                  <div class="bg-red-100 rounded-full p-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 class="text-xl font-bold text-center text-gray-800 mb-4">Confirm Vehicle Deletion</h3>
+                <p class="text-center text-gray-600 mb-6" id="deleteVehicleMessage">Are you sure you want to delete this vehicle? This action cannot be undone.</p>
+                <div class="flex justify-center space-x-3">
+                  <button id="cancelVehicleDeleteBtn" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition duration-300 font-medium text-sm">
+                    Cancel
+                  </button>
+                  <form id="deleteVehicleForm" method="post" action="process_delete_vehicle.php">
+                    <input type="hidden" id="deleteVehicleId" name="vehicle_id" value="">
+                    <button type="submit" class="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-300 font-medium text-sm">
+                      Delete Vehicle
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add this JavaScript right after the modal HTML -->
+          <script>
+            // Function to show delete confirmation modal
+            function confirmDelete(vehicleId, vehicleName) {
+              // Update the modal content
+              document.getElementById('deleteVehicleMessage').textContent = `Are you sure you want to delete ${vehicleName}? This action cannot be undone.`;
+              document.getElementById('deleteVehicleId').value = vehicleId;
+
+              // Show the modal
+              document.getElementById('deleteVehicleModal').classList.remove('hidden');
+            }
+
+            // Event listeners for modal interactions
+            document.addEventListener('DOMContentLoaded', function() {
+              // Cancel button closes the modal
+              document.getElementById('cancelVehicleDeleteBtn').addEventListener('click', function() {
+                document.getElementById('deleteVehicleModal').classList.add('hidden');
+              });
+
+              // Close modal when clicking outside
+              document.getElementById('deleteVehicleModal').addEventListener('click', function(event) {
+                if (event.target === this) {
+                  this.classList.add('hidden');
+                }
+              });
+            });
+
+            // Close modal on escape key
+            document.addEventListener('keydown', function(event) {
+              if (event.key === 'Escape') {
+                document.getElementById('deleteVehicleModal').classList.add('hidden');
+              }
+            });
+          </script>
+          <div class="mt-6 flex justify-between items-center">
+            <div>
+              <span class="text-sm text-gray-600">Showing <?php echo count($recentVehicles); ?> of <?php echo $totalVehicles; ?> vehicles</span>
+            </div>
+            <div class="flex space-x-1">
+              <a href="vehicles.php" class="px-4 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-all flex items-center">
+                <span>View All</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
           </div>
 
           <div class="mt-6 flex justify-between items-center">
@@ -338,73 +507,8 @@ foreach ($dropdowns['makes'] as $make) {
 
         <!-- Add New Car Form -->
         <div class="dashboard-card bg-white p-6 w-full lg:w-1/4">
-          <h2 class="text-xl font-bold text-gray-800 mb-6">Quick Add Vehicle</h2>
-          <form id="quickAddForm" class="space-y-4" method="post" action="process_add_vehicle.php">
-            <div>
-              <label for="make" class="block text-sm font-medium text-gray-700 mb-1">Make</label>
-              <select id="make" name="make" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Make</option>
-                <?php foreach ($dropdowns['makes'] as $make): ?>
-                  <option value="<?php echo $make['id']; ?>"><?php echo htmlspecialchars($make['name']); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div>
-              <label for="model" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <select id="model" name="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Make First</option>
-              </select>
-            </div>
-            <div>
-              <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-              <input type="number" id="year" name="year" min="1900" max="<?php echo date('Y') + 1; ?>" placeholder="e.g. <?php echo date('Y'); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-            </div>
-            <div>
-              <label for="body_style" class="block text-sm font-medium text-gray-700 mb-1">Body Type</label>
-              <select id="body_style" name="body_style" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Body Type</option>
-                <?php foreach ($dropdowns['bodyTypes'] as $bodyType): ?>
-                  <option value="<?php echo $bodyType['id']; ?>"><?php echo htmlspecialchars($bodyType['name']); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div>
-              <label for="mileage" class="block text-sm font-medium text-gray-700 mb-1">Mileage</label>
-              <input type="text" id="mileage" name="mileage" placeholder="e.g. 15000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-            </div>
-            <div>
-              <label for="fuel_type" class="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
-              <select id="fuel_type" name="fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Fuel Type</option>
-                <?php foreach ($dropdowns['fuelTypes'] as $fuelType): ?>
-                  <option value="<?php echo $fuelType['id']; ?>"><?php echo htmlspecialchars($fuelType['name']); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div>
-              <label for="transmission" class="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
-              <select id="transmission" name="transmission" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Transmission</option>
-                <?php foreach ($dropdowns['transmissions'] as $transmission): ?>
-                  <option value="<?php echo $transmission['id']; ?>"><?php echo htmlspecialchars($transmission['name']); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div>
-              <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select id="status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 text-sm">
-                <option value="">Select Status</option>
-                <?php foreach ($dropdowns['statuses'] as $status): ?>
-                  <option value="<?php echo $status['id']; ?>"><?php echo htmlspecialchars($status['name']); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="pt-2">
-              <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2.5 px-4 rounded-lg transition duration-300 font-medium text-sm shadow-md">
-                Add Vehicle
-              </button>
-            </div>
-          </form>
+          <h2 class="text-xl font-bold text-gray-800 mb-6"></h2>
+
         </div>
       </div>
 
@@ -563,121 +667,60 @@ foreach ($dropdowns['makes'] as $make) {
       </div>
     </div>
   </div>
-
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM content loaded');
+      // Store models data globally with explicit object conversion
+      window.allModels = JSON.parse('<?php echo json_encode($allModels, JSON_HEX_APOS); ?>');
 
-      // Pre-loaded models data from PHP
-      const allModels = <?php echo json_encode($allModels); ?>;
-      console.log('All models object:', allModels);
-      console.log('Keys in allModels:', Object.keys(allModels));
+      console.log('Models data loaded:', window.allModels);
+      console.log('Available keys:', Object.keys(window.allModels));
 
-      // Check if the make dropdown exists
+      function updateModelDropdown(makeId, modelDropdown) {
+        // Clear current options
+        modelDropdown.innerHTML = '<option value="">Select Model</option>';
+
+        if (!makeId) return;
+
+        // Ensure makeId is treated as a string for consistent lookup
+        const makeIdStr = makeId.toString();
+        console.log('Looking for models with make ID:', makeIdStr);
+
+        // Check if models exist for this make and is an array
+        if (window.allModels[makeIdStr] && Array.isArray(window.allModels[makeIdStr]) && window.allModels[makeIdStr].length > 0) {
+          console.log('Found models:', window.allModels[makeIdStr].length);
+
+          // Add models to dropdown
+          for (let i = 0; i < window.allModels[makeIdStr].length; i++) {
+            const model = window.allModels[makeIdStr][i];
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            modelDropdown.appendChild(option);
+            console.log('Added model option:', model.name, 'with ID:', model.id);
+          }
+        } else {
+          console.error('No valid models array found for make ID:', makeIdStr);
+          modelDropdown.innerHTML = '<option value="">No models available for this make</option>';
+        }
+      }
+
+      // Quick add form
       const makeDropdown = document.getElementById('make');
       const modelDropdown = document.getElementById('model');
 
-      console.log('Make dropdown found:', makeDropdown ? 'Yes' : 'No');
-      console.log('Model dropdown found:', modelDropdown ? 'Yes' : 'No');
-
-      if (makeDropdown) {
-        console.log('Make dropdown options:', Array.from(makeDropdown.options).map(o => `${o.textContent} (value: '${o.value}')`));
-      }
-
       if (makeDropdown && modelDropdown) {
-        // IMPORTANT: Disable any existing event handlers that might be conflicting
-        const newMakeDropdown = makeDropdown.cloneNode(true);
-        makeDropdown.parentNode.replaceChild(newMakeDropdown, makeDropdown);
-
-        // Add event listener to the new element
-        newMakeDropdown.addEventListener('change', function() {
-          const makeId = this.value;
-          console.log('Make dropdown changed to:', makeId);
-          console.log('Selected index:', this.selectedIndex);
-          console.log('Selected option text:', this.options[this.selectedIndex].text);
-
-          // Clear the model dropdown
-          modelDropdown.innerHTML = '<option value="">Select Model</option>';
-
-          // Check if make ID exists
-          if (makeId) {
-            console.log('Looking for models with make ID:', makeId);
-            console.log('allModels has this key:', allModels.hasOwnProperty(makeId) ? 'Yes' : 'No');
-
-            if (allModels[makeId]) {
-              console.log('Found models:', allModels[makeId].length);
-
-              // Add models to dropdown
-              allModels[makeId].forEach(function(model) {
-                const option = document.createElement('option');
-                option.value = model.id;
-                option.textContent = model.name;
-                modelDropdown.appendChild(option);
-                console.log('Added model option:', model.name, 'with ID:', model.id);
-              });
-
-              console.log('Final model dropdown options count:', modelDropdown.options.length);
-            } else {
-              console.error('No models found for make ID:', makeId);
-              console.log('Available keys in allModels:', Object.keys(allModels));
-              modelDropdown.innerHTML = '<option value="">No models available for this make</option>';
-            }
-          } else {
-            console.log('No make selected (empty value)');
-          }
+        makeDropdown.addEventListener('change', function() {
+          updateModelDropdown(this.value, modelDropdown);
         });
-
-        // Force an initial triggering of the event for debugging
-        console.log('Setting up initial make value for testing...');
-        setTimeout(function() {
-          if (newMakeDropdown.options.length > 1) {
-            newMakeDropdown.value = newMakeDropdown.options[1].value; // Select first non-empty option
-            console.log('Set make dropdown to:', newMakeDropdown.value);
-
-            // Create and dispatch a change event
-            const event = new Event('change');
-            newMakeDropdown.dispatchEvent(event);
-            console.log('Change event dispatched');
-          }
-        }, 500); // Short delay to ensure DOM is ready
       }
 
-      // Same approach for modal dropdowns
+      // Modal form
       const modalMakeDropdown = document.getElementById('modalMake');
       const modalModelDropdown = document.getElementById('modalModel');
 
-      console.log('Modal make dropdown found:', modalMakeDropdown ? 'Yes' : 'No');
-      console.log('Modal model dropdown found:', modalModelDropdown ? 'Yes' : 'No');
-
       if (modalMakeDropdown && modalModelDropdown) {
-        // IMPORTANT: Disable any existing event handlers
-        const newModalMakeDropdown = modalMakeDropdown.cloneNode(true);
-        modalMakeDropdown.parentNode.replaceChild(newModalMakeDropdown, modalMakeDropdown);
-
-        // Add event listener to the new element
-        newModalMakeDropdown.addEventListener('change', function() {
-          const makeId = this.value;
-          console.log('Modal make dropdown changed to:', makeId);
-
-          // Clear the model dropdown
-          modalModelDropdown.innerHTML = '<option value="">Select Model</option>';
-
-          // Check if make ID exists
-          if (makeId && allModels[makeId]) {
-            console.log('Found models for modal:', allModels[makeId].length);
-
-            // Add models to dropdown
-            allModels[makeId].forEach(function(model) {
-              const option = document.createElement('option');
-              option.value = model.id;
-              option.textContent = model.name;
-              modalModelDropdown.appendChild(option);
-              console.log('Added modal model option:', model.name);
-            });
-          } else if (makeId) {
-            console.error('No models found for modal make ID:', makeId);
-            modalModelDropdown.innerHTML = '<option value="">No models available for this make</option>';
-          }
+        modalMakeDropdown.addEventListener('change', function() {
+          updateModelDropdown(this.value, modalModelDropdown);
         });
       }
 
@@ -689,20 +732,28 @@ foreach ($dropdowns['makes'] as $make) {
       const saveVehicleBtn = document.getElementById('saveVehicleBtn');
       const addCarForm = document.getElementById('addCarForm');
 
-      if (addNewCarBtn && addCarModal && closeModalBtn && cancelBtn) {
+      if (addNewCarBtn && addCarModal) {
         addNewCarBtn.addEventListener('click', function() {
           addCarModal.classList.remove('hidden');
         });
 
-        [closeModalBtn, cancelBtn].forEach(btn => {
-          btn.addEventListener('click', function() {
+        if (closeModalBtn) {
+          closeModalBtn.addEventListener('click', function() {
             addCarModal.classList.add('hidden');
           });
-        });
+        }
 
-        saveVehicleBtn.addEventListener('click', function() {
-          addCarForm.submit();
-        });
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function() {
+            addCarModal.classList.add('hidden');
+          });
+        }
+
+        if (saveVehicleBtn && addCarForm) {
+          saveVehicleBtn.addEventListener('click', function() {
+            addCarForm.submit();
+          });
+        }
       }
 
       // File upload preview
@@ -714,21 +765,37 @@ foreach ($dropdowns['makes'] as $make) {
           fileNamesDiv.innerHTML = '';
 
           if (fileInput.files.length > 0) {
-            Array.from(fileInput.files).forEach(file => {
-              const fileNameEl = document.createElement('div');
-              fileNameEl.textContent = file.name;
-              fileNamesDiv.appendChild(fileNameEl);
-            });
+            for (let i = 0; i < fileInput.files.length; i++) {
+              const file = fileInput.files[i];
+              const fileItem = document.createElement('div');
+              fileItem.className = 'flex items-center';
+              fileItem.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+            </svg>
+            <span class="truncate">${file.name}</span>
+          `;
+              fileNamesDiv.appendChild(fileItem);
+            }
           }
         }
       };
 
-      // Add a global helper function for debugging
+      // Debug helper
       window.debugModels = function(makeId) {
         console.log('=== DEBUG MODELS ===');
         console.log('Requested make ID:', makeId);
-        console.log('Available keys:', Object.keys(allModels));
-        console.log('Models for this make:', allModels[makeId]);
+        console.log('Type of allModels:', typeof window.allModels);
+        console.log('Available keys:', Object.keys(window.allModels));
+
+        const makeIdStr = makeId.toString();
+        if (window.allModels[makeIdStr]) {
+          console.log('Models for this make:', window.allModels[makeIdStr]);
+          console.log('Is Array?', Array.isArray(window.allModels[makeIdStr]));
+          console.log('Length:', window.allModels[makeIdStr].length);
+        } else {
+          console.log('No models found for make ID:', makeIdStr);
+        }
         console.log('===================');
       };
     });

@@ -145,13 +145,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <link rel="stylesheet" href="assets/css/login.css">
 </head>
 
-<body class="bg-gray-50 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-50">
   <?php include 'includes/navbar.php'; ?>
-
-
-
   <!-- Main Content -->
-  <div class="login-card bg-white w-full max-w-5xl flex flex-col md:flex-row mt-16">
+  <div class="login-card bg-white w-full max-w-5xl flex flex-col md:flex-row">
     <!-- Left side - car image with overlay -->
     <div class="hidden md:block md:w-1/2 bg-car relative">
       <div class="absolute inset-0 bg-gradient-to-r from-indigo-900/90 to-purple-900/70 flex flex-col justify-center items-center p-12">

@@ -1,27 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 body,
 html {
-  font-family: 'Poppins', sans-serif;
-  height: 100%;
+  font-family: "Poppins", sans-serif;
+  /* height: 100%; */
   background-color: #f9fafb;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.register-card {
-  margin-top: 450px;
+.register-card,
+.login-card {
+  margin: 2rem auto; /* Center the card with automatic horizontal margins */
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  max-width: 1200px; /* Set maximum width */
+  width: 100%; /* Full width up to max-width */
+  display: flex;
+  flex-direction: column;
+  min-height: auto; /* Allow the height to adjust to content */
+}
+
+@media (min-width: 768px) {
+  .register-card,
+  .login-card {
+    flex-direction: row; /* Side by side on larger screens */
+    min-height: 600px; /* Minimum height on desktop */
+  }
 }
 
 .bg-car {
-  background-image: url('https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+  background-image: url("https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
   background-size: cover;
   background-position: center;
 }
 
 .input-group {
   position: relative;
+  margin-bottom: 1rem;
 }
 
 .input-icon {
@@ -35,19 +54,39 @@ html {
 .form-input {
   transition: all 0.3s;
   padding-left: 2.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  height: 48px;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
 }
 
 .form-input:focus {
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  outline: none;
 }
 
-.register-btn {
+.register-btn,
+.login-btn {
   background: linear-gradient(to right, #4f46e5, #7e22ce);
   transition: all 0.3s;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: white;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: none;
+  cursor: pointer;
 }
 
-.register-btn:hover {
+.register-btn:hover,
+.login-btn:hover {
   background: linear-gradient(to right, #4338ca, #6b21a8);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
@@ -77,4 +116,58 @@ html {
 .animated-delay-2 {
   opacity: 0;
   animation: fadeIn 0.6s ease-out 0.2s forwards;
+}
+
+/* Ensure right side content is properly centered */
+.register-card > div:last-child,
+.login-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* Fix for checkboxes */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+/* Make sure the form is visible and properly spaced */
+form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Add space between form elements */
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+/* Links styling */
+/* a {
+  color: #4f46e5;
+  text-decoration: none;
+  transition: color 0.2s;
+} */
+
+a:hover {
+  /* color: #4338ca; */
+  /* text-decoration: underline; */
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .register-card,
+  .login-card {
+    margin: 1rem;
+    border-radius: 8px;
+  }
+
+  .register-card > div:last-child,
+  .login-card > div:last-child {
+    padding: 1.5rem;
+  }
 }

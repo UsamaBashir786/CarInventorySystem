@@ -160,3 +160,167 @@
         window.location.href = 'login.php';
       }
     });
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM content loaded');
+
+      // Pre-loaded models data from PHP
+
+      // Check if the make dropdown exists
+      const makeDropdown = document.getElementById('make');
+      const modelDropdown = document.getElementById('model');
+
+      console.log('Make dropdown found:', makeDropdown ? 'Yes' : 'No');
+      console.log('Model dropdown found:', modelDropdown ? 'Yes' : 'No');
+
+      if (makeDropdown) {
+        console.log('Make dropdown options:', Array.from(makeDropdown.options).map(o => `${o.textContent} (value: '${o.value}')`));
+      }
+
+      if (makeDropdown && modelDropdown) {
+        // IMPORTANT: Disable any existing event handlers that might be conflicting
+        const newMakeDropdown = makeDropdown.cloneNode(true);
+        makeDropdown.parentNode.replaceChild(newMakeDropdown, makeDropdown);
+
+        // Add event listener to the new element
+        newMakeDropdown.addEventListener('change', function() {
+          const makeId = this.value;
+          console.log('Make dropdown changed to:', makeId);
+          console.log('Selected index:', this.selectedIndex);
+          console.log('Selected option text:', this.options[this.selectedIndex].text);
+
+          // Clear the model dropdown
+          modelDropdown.innerHTML = '<option value="">Select Model</option>';
+
+          // Check if make ID exists
+          if (makeId) {
+            console.log('Looking for models with make ID:', makeId);
+            console.log('allModels has this key:', allModels.hasOwnProperty(makeId) ? 'Yes' : 'No');
+
+            if (allModels[makeId]) {
+              console.log('Found models:', allModels[makeId].length);
+
+              // Add models to dropdown
+              allModels[makeId].forEach(function(model) {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                modelDropdown.appendChild(option);
+                console.log('Added model option:', model.name, 'with ID:', model.id);
+              });
+
+              console.log('Final model dropdown options count:', modelDropdown.options.length);
+            } else {
+              console.error('No models found for make ID:', makeId);
+              console.log('Available keys in allModels:', Object.keys(allModels));
+              modelDropdown.innerHTML = '<option value="">No models available for this make</option>';
+            }
+          } else {
+            console.log('No make selected (empty value)');
+          }
+        });
+
+        // Force an initial triggering of the event for debugging
+        console.log('Setting up initial make value for testing...');
+        setTimeout(function() {
+          if (newMakeDropdown.options.length > 1) {
+            newMakeDropdown.value = newMakeDropdown.options[1].value; // Select first non-empty option
+            console.log('Set make dropdown to:', newMakeDropdown.value);
+
+            // Create and dispatch a change event
+            const event = new Event('change');
+            newMakeDropdown.dispatchEvent(event);
+            console.log('Change event dispatched');
+          }
+        }, 500); // Short delay to ensure DOM is ready
+      }
+
+      // Same approach for modal dropdowns
+      const modalMakeDropdown = document.getElementById('modalMake');
+      const modalModelDropdown = document.getElementById('modalModel');
+
+      console.log('Modal make dropdown found:', modalMakeDropdown ? 'Yes' : 'No');
+      console.log('Modal model dropdown found:', modalModelDropdown ? 'Yes' : 'No');
+
+      if (modalMakeDropdown && modalModelDropdown) {
+        // IMPORTANT: Disable any existing event handlers
+        const newModalMakeDropdown = modalMakeDropdown.cloneNode(true);
+        modalMakeDropdown.parentNode.replaceChild(newModalMakeDropdown, modalMakeDropdown);
+
+        // Add event listener to the new element
+        newModalMakeDropdown.addEventListener('change', function() {
+          const makeId = this.value;
+          console.log('Modal make dropdown changed to:', makeId);
+
+          // Clear the model dropdown
+          modalModelDropdown.innerHTML = '<option value="">Select Model</option>';
+
+          // Check if make ID exists
+          if (makeId && allModels[makeId]) {
+            console.log('Found models for modal:', allModels[makeId].length);
+
+            // Add models to dropdown
+            allModels[makeId].forEach(function(model) {
+              const option = document.createElement('option');
+              option.value = model.id;
+              option.textContent = model.name;
+              modalModelDropdown.appendChild(option);
+              console.log('Added modal model option:', model.name);
+            });
+          } else if (makeId) {
+            console.error('No models found for modal make ID:', makeId);
+            modalModelDropdown.innerHTML = '<option value="">No models available for this make</option>';
+          }
+        });
+      }
+
+      // Modal controls
+      const addNewCarBtn = document.getElementById('addNewCarBtn');
+      const addCarModal = document.getElementById('addCarModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const saveVehicleBtn = document.getElementById('saveVehicleBtn');
+      const addCarForm = document.getElementById('addCarForm');
+
+      if (addNewCarBtn && addCarModal && closeModalBtn && cancelBtn) {
+        addNewCarBtn.addEventListener('click', function() {
+          addCarModal.classList.remove('hidden');
+        });
+
+        [closeModalBtn, cancelBtn].forEach(btn => {
+          btn.addEventListener('click', function() {
+            addCarModal.classList.add('hidden');
+          });
+        });
+
+        saveVehicleBtn.addEventListener('click', function() {
+          addCarForm.submit();
+        });
+      }
+
+      // File upload preview
+      window.updateFileNames = function() {
+        const fileInput = document.getElementById('modalImages');
+        const fileNamesDiv = document.getElementById('fileNames');
+
+        if (fileInput && fileNamesDiv) {
+          fileNamesDiv.innerHTML = '';
+
+          if (fileInput.files.length > 0) {
+            Array.from(fileInput.files).forEach(file => {
+              const fileNameEl = document.createElement('div');
+              fileNameEl.textContent = file.name;
+              fileNamesDiv.appendChild(fileNameEl);
+            });
+          }
+        }
+      };
+
+      // Add a global helper function for debugging
+      window.debugModels = function(makeId) {
+        console.log('=== DEBUG MODELS ===');
+        console.log('Requested make ID:', makeId);
+        console.log('Available keys:', Object.keys(allModels));
+        console.log('Models for this make:', allModels[makeId]);
+        console.log('===================');
+      };
+    });

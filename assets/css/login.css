@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 body,
 html {
-  font-family: 'Poppins', sans-serif;
-  height: 100%;
+  font-family: "Poppins", sans-serif;
+  /* height: 100%; */
   background-color: #f9fafb;
 }
 
@@ -15,7 +15,7 @@ html {
 }
 
 .bg-car {
-  background-image: url('https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80');
+  background-image: url("https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
   background-size: cover;
   background-position: center;
 }
@@ -64,7 +64,26 @@ html {
     transform: translateY(0);
   }
 }
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
+.login-card {
+  margin: 2rem auto;
+  min-height: calc(100vh - 80px - 4rem); /* Adjust based on navbar height */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Ensure the right column content is vertically centered */
+.login-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .animated {
   animation: fadeIn 0.6s ease-out forwards;
 }

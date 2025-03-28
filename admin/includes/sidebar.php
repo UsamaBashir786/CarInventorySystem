@@ -29,12 +29,12 @@
             </a>
           </li>
           <li>
-            <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
+            <a href="vehicles.php" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                 <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
               </svg>
-              <span>Car Inventory</span>
+              <span>Vehicles</span>
             </a>
           </li>
           <li>
@@ -46,19 +46,11 @@
             </a>
           </li>
           <li>
-            <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
+            <a href="users.php" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4.07 11c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
               </svg>
               <span>Customers</span>
-            </a>
-          </li>
-          <li>
-            <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-              </svg>
-              <span>Reports</span>
             </a>
           </li>
         </ul>
@@ -75,14 +67,14 @@
               <span>Settings</span>
             </a>
           </li>
-          <li>
+          <!-- <li>
             <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 rounded-lg sidebar-item">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
               </svg>
               <span>Help & Support</span>
             </a>
-          </li>
+          </li> -->
         </ul>
       </div>
     </div>
