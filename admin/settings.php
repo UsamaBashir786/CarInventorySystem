@@ -43,6 +43,10 @@ function getSettings($conn)
       id INT(11) AUTO_INCREMENT PRIMARY KEY,
       setting_key VARCHAR(100) NOT NULL UNIQUE,
       setting_value TEXT,
+      setting_group VARCHAR(50) DEFAULT 'general',
+      setting_type VARCHAR(20) DEFAULT 'text',
+      display_name VARCHAR(100) NOT NULL,
+      description TEXT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )";
@@ -51,19 +55,40 @@ function getSettings($conn)
 
     // Insert default settings
     $defaultSettings = [
-      ['site_name', 'CentralAutogy'],
-      ['site_tagline', 'Your one-stop destination for finding the perfect vehicle'],
-      ['favicon_path', ''],
-      ['navbar_logo_path', ''],
-      ['footer_logo_path', '']
+      ['site_name', 'CentralAutogy', 'General', 'text', 'Website Name', 'The name of the website'],
+      ['site_tagline', 'Your one-stop destination for finding the perfect vehicle', 'General', 'text', 'Website Tagline', 'A short description of the website'],
+      ['favicon_path', '', 'Assets', 'file', 'Favicon', 'Website favicon'],
+      ['navbar_logo_path', '', 'Assets', 'file', 'Navbar Logo', 'Logo displayed in the navigation bar'],
+      ['footer_logo_path', '', 'Assets', 'file', 'Footer Logo', 'Logo displayed in the footer']
     ];
 
-    $insertStmt = $conn->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?)");
+    $insertStmt = $conn->prepare("INSERT INTO site_settings (setting_key, setting_value, setting_group, setting_type, display_name, description) VALUES (?, ?, ?, ?, ?, ?)");
     foreach ($defaultSettings as $setting) {
-      $insertStmt->bind_param("ss", $setting[0], $setting[1]);
+      $insertStmt->bind_param("ssssss", $setting[0], $setting[1], $setting[2], $setting[3], $setting[4], $setting[5]);
       $insertStmt->execute();
     }
     $insertStmt->close();
+  }
+
+  // Check if site_assets table exists
+  $assetTableCheck = $conn->query("SHOW TABLES LIKE 'site_assets'");
+
+  if ($assetTableCheck->num_rows == 0) {
+    // Create site_assets table if it doesn't exist
+    $createAssetTable = "CREATE TABLE site_assets (
+      id INT(11) AUTO_INCREMENT PRIMARY KEY,
+      asset_key VARCHAR(100) NOT NULL UNIQUE,
+      asset_path VARCHAR(255) NOT NULL,
+      asset_type VARCHAR(20) DEFAULT 'image',
+      mime_type VARCHAR(100) DEFAULT NULL,
+      original_filename VARCHAR(255) DEFAULT NULL,
+      display_name VARCHAR(100) NOT NULL,
+      description TEXT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )";
+
+    $conn->query($createAssetTable);
   }
 
   // Get all settings
@@ -90,9 +115,10 @@ function updateSetting($conn, $settingName, $settingValue)
   return $result;
 }
 
-// Function to handle file uploads
-function handleFileUpload($file, $targetDir)
+function handleFileUpload($file, $targetDir, $assetKey = null)
 {
+  global $conn; // Make sure to use the global database connection
+
   // Check if directory exists, create if not
   if (!file_exists($targetDir)) {
     mkdir($targetDir, 0777, true);
@@ -122,15 +148,59 @@ function handleFileUpload($file, $targetDir)
   // Generate a unique filename to avoid overwriting
   $newFileName = uniqid() . "." . $imageFileType;
   $targetFile = $targetDir . $newFileName;
+  $relativePath = substr($targetFile, 3); // Remove '../' from the path
 
   // Try to upload file
   if (move_uploaded_file($file["tmp_name"], $targetFile)) {
-    return ["success" => true, "path" => substr($targetFile, 3), "message" => "File uploaded successfully."];
+    // If an asset key is provided, save to site_assets table
+    if ($assetKey !== null) {
+      try {
+        // Prepare variables
+        $assetType = 'image';
+        $mimeType = mime_content_type($targetFile);
+
+        // Modify the SQL to match the table structure
+        $stmt = $conn->prepare("INSERT INTO site_assets 
+          (asset_key, asset_path, asset_type, mime_type, original_filename, display_name, description) 
+          VALUES (?, ?, ?, ?, ?, ?, '')
+          ON DUPLICATE KEY UPDATE 
+          asset_path = ?, 
+          mime_type = ?, 
+          original_filename = ?, 
+          updated_at = CURRENT_TIMESTAMP");
+        
+        // Ensure all variables are prepared before binding
+        $stmt->bind_param(
+          "sssssssss", 
+          $assetKey,      // 1. asset_key
+          $relativePath,  // 2. asset_path
+          $assetType,     // 3. asset_type
+          $mimeType,      // 4. mime_type
+          $fileName,      // 5. original_filename
+          $assetKey,      // 6. display_name
+          $relativePath,  // 7. asset_path (for update)
+          $mimeType,      // 8. mime_type (for update)
+          $fileName       // 9. original_filename (for update)
+        );
+        
+        if (!$stmt->execute()) {
+          // If database insertion fails, you might want to delete the uploaded file
+          unlink($targetFile);
+          return ["success" => false, "message" => "Failed to save asset to database: " . $stmt->error];
+        }
+        $stmt->close();
+      } catch (Exception $e) {
+        // Log the full error for debugging
+        error_log("Asset save error: " . $e->getMessage());
+        return ["success" => false, "message" => "Database error: " . $e->getMessage()];
+      }
+    }
+
+    return ["success" => true, "path" => $relativePath, "message" => "File uploaded successfully."];
   } else {
     return ["success" => false, "message" => "Failed to upload file."];
   }
 }
-
 // Initialize variables
 $settings = getSettings($conn);
 $success_message = "";
@@ -158,7 +228,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   // Handle favicon upload
   if (isset($_FILES['favicon']) && $_FILES['favicon']['error'] == 0) {
-    $result = handleFileUpload($_FILES['favicon'], "../assets/images/");
+    $result = handleFileUpload($_FILES['favicon'], "../assets/images/", "favicon");
 
     if ($result['success']) {
       if (updateSetting($conn, 'favicon_path', $result['path'])) {
@@ -174,7 +244,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   // Handle navbar logo upload
   if (isset($_FILES['navbar_logo']) && $_FILES['navbar_logo']['error'] == 0) {
-    $result = handleFileUpload($_FILES['navbar_logo'], "../assets/images/logos/");
+    $result = handleFileUpload($_FILES['navbar_logo'], "../assets/images/logos/", "navbar_logo");
 
     if ($result['success']) {
       if (updateSetting($conn, 'navbar_logo_path', $result['path'])) {
@@ -190,7 +260,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   // Handle footer logo upload
   if (isset($_FILES['footer_logo']) && $_FILES['footer_logo']['error'] == 0) {
-    $result = handleFileUpload($_FILES['footer_logo'], "../assets/images/logos/");
+    $result = handleFileUpload($_FILES['footer_logo'], "../assets/images/logos/", "footer_logo");
 
     if ($result['success']) {
       if (updateSetting($conn, 'footer_logo_path', $result['path'])) {
@@ -267,7 +337,7 @@ $conn->close();
           <div class="flex justify-between items-center">
             <div class="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rulefill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
               </svg>
               <p><?php echo $error_message; ?></p>
             </div>
@@ -439,7 +509,7 @@ $conn->close();
             <div class="flex items-center space-x-2 mb-2">
               <?php if (!empty($settings['footer_logo_path'])): ?>
                 <img src="<?php echo '../' . htmlspecialchars($settings['footer_logo_path']); ?>" alt="Footer Logo" class="h-7">
-              <?php else: ?>
+                <? phpelse: ?>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                   <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
