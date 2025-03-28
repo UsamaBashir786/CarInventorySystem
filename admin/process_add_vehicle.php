@@ -6,6 +6,14 @@ if (!isset($_SESSION["admin_id"])) {
   exit;
 }
 
+// Add debugging
+error_log("Processing vehicle upload");
+if (isset($_FILES['images'])) {
+  error_log("Files included in submission: " . count($_FILES['images']['name']));
+} else {
+  error_log("No files included in submission");
+}
+
 // Include database connection
 require_once '../config/db.php';
 
@@ -69,7 +77,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   $mileage = isset($_POST['mileage']) ? intval(str_replace(',', '', $_POST['mileage'])) : 0;
   $vin = isset($_POST['vin']) ? trim($_POST['vin']) : '';
   $condition = 'New'; // Default condition
-  
+
   // Body style
   $bodyStyleId = isset($_POST['body_style']) ? intval($_POST['body_style']) : 0;
   $bodyStyle = '';
@@ -197,37 +205,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   if ($result) {
     $vehicleId = $conn->insert_id;
+    error_log("Vehicle added with ID: " . $vehicleId);
 
     // Handle image uploads if any
     if (isset($_FILES['images']) && !empty($_FILES['images']['name'][0])) {
+      // Base upload directory
       $uploadDir = '../uploads/vehicles/';
 
-      // Create directory if it doesn't exist
+      // Create base directory if it doesn't exist
       if (!file_exists($uploadDir)) {
         mkdir($uploadDir, 0777, true);
+        error_log("Created base upload directory: " . $uploadDir);
+      }
+
+      // Create vehicle-specific directory
+      $vehicleDir = $uploadDir . $vehicleId . '/';
+      if (!file_exists($vehicleDir)) {
+        mkdir($vehicleDir, 0777, true);
+        error_log("Created vehicle directory: " . $vehicleDir);
       }
 
       // Process each uploaded file
       $fileCount = count($_FILES['images']['name']);
+      error_log("Processing " . $fileCount . " image(s)");
 
       for ($i = 0; $i < $fileCount; $i++) {
         if ($_FILES['images']['error'][$i] === UPLOAD_ERR_OK) {
           $tmpName = $_FILES['images']['tmp_name'][$i];
           $fileName = basename($_FILES['images']['name'][$i]);
           $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+          error_log("Processing file: " . $fileName);
 
           // Only allow certain file types
           $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
           if (in_array($fileExt, $allowedExt)) {
             // Generate a unique filename
-            $newFileName = 'vehicle_' . $vehicleId . '_' . uniqid() . '.' . $fileExt;
-            $destination = $uploadDir . $newFileName;
+            $newFileName = 'vehicle_' . uniqid() . '.' . $fileExt;
+            $destination = $vehicleDir . $newFileName;
+            error_log("Saving to: " . $destination);
 
             // Move the file to the upload directory
             if (move_uploaded_file($tmpName, $destination)) {
-              // Save image record to database
-              $imgPath = 'uploads/vehicles/' . $newFileName;
+              error_log("File moved successfully");
+
+              // Save image record to database - use web path
+              $imgPath = 'uploads/vehicles/' . $vehicleId . '/' . $newFileName;
+              error_log("Database path: " . $imgPath);
+
               $imgSql = "INSERT INTO vehicle_images (vehicle_id, image_path, is_primary) VALUES (?, ?, ?)";
               $imgStmt = $conn->prepare($imgSql);
 
@@ -235,17 +260,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               $isPrimary = ($i === 0) ? 1 : 0;
 
               $imgStmt->bind_param("isi", $vehicleId, $imgPath, $isPrimary);
-              $imgStmt->execute();
+              $result = $imgStmt->execute();
+
+              if ($result) {
+                error_log("Image record saved to database");
+              } else {
+                error_log("Error saving image record: " . $imgStmt->error);
+              }
+
               $imgStmt->close();
+            } else {
+              error_log("Failed to move uploaded file");
             }
+          } else {
+            error_log("Invalid file extension: " . $fileExt);
           }
+        } else {
+          error_log("File upload error code: " . $_FILES['images']['error'][$i]);
         }
       }
+    } else {
+      error_log("No images uploaded with this vehicle");
     }
 
     $_SESSION['success'] = "Vehicle added successfully";
   } else {
     $_SESSION['error'] = "Error adding vehicle: " . $conn->error;
+    error_log("Error adding vehicle: " . $conn->error);
   }
 
   $conn->close();
@@ -255,6 +296,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   exit;
 } else {
   // If accessed directly without form submission
+  error_log("Direct access to process_add_vehicle.php without form submission");
   header("Location: index.php");
   exit;
 }

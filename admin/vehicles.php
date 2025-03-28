@@ -145,7 +145,7 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
 {
   $conn = getConnection();
   $offset = ($page - 1) * $limit;
-  
+
   // Base query
   $query = "SELECT 
       id, 
@@ -161,12 +161,12 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
   FROM 
       vehicles
   WHERE 1=1";
-  
+
   $countQuery = "SELECT COUNT(*) as total FROM vehicles WHERE 1=1";
-  
+
   $params = [];
   $types = "";
-  
+
   // Add filters to query
   if (!empty($filters['make'])) {
     $query .= " AND make = ?";
@@ -174,56 +174,56 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
     $params[] = $filters['make'];
     $types .= "s";
   }
-  
+
   if (!empty($filters['status'])) {
     $query .= " AND status = ?";
     $countQuery .= " AND status = ?";
     $params[] = $filters['status'];
     $types .= "s";
   }
-  
+
   if (!empty($filters['fuel_type'])) {
     $query .= " AND fuel_type = ?";
     $countQuery .= " AND fuel_type = ?";
     $params[] = $filters['fuel_type'];
     $types .= "s";
   }
-  
+
   if (!empty($filters['body_style'])) {
     $query .= " AND body_style = ?";
     $countQuery .= " AND body_style = ?";
     $params[] = $filters['body_style'];
     $types .= "s";
   }
-  
+
   if (!empty($filters['year_min'])) {
     $query .= " AND year >= ?";
     $countQuery .= " AND year >= ?";
     $params[] = $filters['year_min'];
     $types .= "i";
   }
-  
+
   if (!empty($filters['year_max'])) {
     $query .= " AND year <= ?";
     $countQuery .= " AND year <= ?";
     $params[] = $filters['year_max'];
     $types .= "i";
   }
-  
+
   if (!empty($filters['price_min'])) {
     $query .= " AND price >= ?";
     $countQuery .= " AND price >= ?";
     $params[] = $filters['price_min'];
     $types .= "d";
   }
-  
+
   if (!empty($filters['price_max'])) {
     $query .= " AND price <= ?";
     $countQuery .= " AND price <= ?";
     $params[] = $filters['price_max'];
     $types .= "d";
   }
-  
+
   if (!empty($search)) {
     $searchParam = "%{$search}%";
     $query .= " AND (make LIKE ? OR model LIKE ? OR CONCAT(make, ' ', model) LIKE ? OR vin LIKE ?)";
@@ -234,24 +234,24 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
     $params[] = $searchParam;
     $types .= "ssss";
   }
-  
+
   // Add sorting
   $validSortFields = ['vehicle_name', 'year', 'price', 'mileage', 'status', 'date_added'];
   $sortField = in_array($sort, $validSortFields) ? $sort : 'created_at';
   $sortOrder = $order === 'ASC' ? 'ASC' : 'DESC';
-  
+
   if ($sortField === 'vehicle_name') {
     $query .= " ORDER BY make $sortOrder, model $sortOrder";
   } else {
     $query .= " ORDER BY $sortField $sortOrder";
   }
-  
+
   // Add pagination
   $query .= " LIMIT ?, ?";
   $params[] = $offset;
   $params[] = $limit;
   $types .= "ii";
-  
+
   // Get total count (for pagination)
   $countStmt = $conn->prepare($countQuery);
   if (!empty($params) && !empty(substr($types, 0, -2))) {
@@ -262,7 +262,7 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
   $totalRow = $totalResult->fetch_assoc();
   $total = $totalRow['total'];
   $countStmt->close();
-  
+
   // Get vehicles
   $stmt = $conn->prepare($query);
   if (!empty($params)) {
@@ -270,7 +270,7 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
   }
   $stmt->execute();
   $result = $stmt->get_result();
-  
+
   $vehicles = [];
   if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
@@ -290,18 +290,18 @@ function getVehicles($page, $limit, $filters, $sort, $order, $search)
           $statusClass = 'bg-blue-100 text-blue-800';
           break;
       }
-      
+
       // Add CSS class to the vehicle data
       $row['css_class'] = $statusClass;
-      
+
       // Add to vehicles array
       $vehicles[] = $row;
     }
   }
-  
+
   $stmt->close();
   $conn->close();
-  
+
   return [
     'vehicles' => $vehicles,
     'total' => $total,
@@ -412,14 +412,14 @@ $currentYear = date('Y');
               </button>
             </div>
             <?php if (!empty($filterMake) || !empty($filterStatus) || !empty($filterFuelType) || !empty($filterBodyStyle) || !empty($filterYearMin) || !empty($filterYearMax) || !empty($filterPriceMin) || !empty($filterPriceMax) || !empty($searchKeyword)): ?>
-            <div>
-              <a href="vehicles.php" class="w-full px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-all flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                </svg>
-                Clear Filters
-              </a>
-            </div>
+              <div>
+                <a href="vehicles.php" class="w-full px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-all flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                  Clear Filters
+                </a>
+              </div>
             <?php endif; ?>
           </div>
 
@@ -485,7 +485,7 @@ $currentYear = date('Y');
               <input type="number" id="filter_price_max" name="filter_price_max" min="0" step="0.01" value="<?php echo $filterPriceMax; ?>" placeholder="Max Price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
             </div>
           </div>
-          
+
           <!-- Hidden sort fields to maintain sort when filtering -->
           <input type="hidden" name="sort" value="<?php echo htmlspecialchars($sortField); ?>">
           <input type="hidden" name="order" value="<?php echo htmlspecialchars($sortOrder); ?>">
@@ -666,19 +666,19 @@ $currentYear = date('Y');
                     Previous
                   </a>
                 <?php endif; ?>
-                
-                <?php 
+
+                <?php
                 // Show max 5 page numbers
                 $startPage = max(1, min($page - 2, $totalPages - 4));
                 $endPage = min($startPage + 4, $totalPages);
-                
-                for ($i = $startPage; $i <= $endPage; $i++): 
+
+                for ($i = $startPage; $i <= $endPage; $i++):
                 ?>
                   <a href="vehicles.php?page=<?php echo $i; ?>&sort=<?php echo $sortField; ?>&order=<?php echo $sortOrder; ?>&<?php echo http_build_query(array_filter(['search' => $searchKeyword, 'filter_make' => $filterMake, 'filter_status' => $filterStatus, 'filter_fuel_type' => $filterFuelType, 'filter_body_style' => $filterBodyStyle, 'filter_year_min' => $filterYearMin, 'filter_year_max' => $filterYearMax, 'filter_price_min' => $filterPriceMin, 'filter_price_max' => $filterPriceMax])); ?>" class="px-3 py-1.5 rounded-md <?php echo $i === $page ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'; ?> text-sm transition-all">
                     <?php echo $i; ?>
                   </a>
                 <?php endfor; ?>
-                
+
                 <?php if ($page < $totalPages): ?>
                   <a href="vehicles.php?page=<?php echo $page + 1; ?>&sort=<?php echo $sortField; ?>&order=<?php echo $sortOrder; ?>&<?php echo http_build_query(array_filter(['search' => $searchKeyword, 'filter_make' => $filterMake, 'filter_status' => $filterStatus, 'filter_fuel_type' => $filterFuelType, 'filter_body_style' => $filterBodyStyle, 'filter_year_min' => $filterYearMin, 'filter_year_max' => $filterYearMax, 'filter_price_min' => $filterPriceMin, 'filter_price_max' => $filterPriceMax])); ?>" class="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-all">
                     Next
@@ -785,6 +785,21 @@ $currentYear = date('Y');
               <label for="modalNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
               <textarea id="modalNotes" name="description" rows="2" placeholder="Additional information about the vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"></textarea>
             </div>
+            <div class="col-span-1 md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Images</label>
+              <div class="file-drop-area">
+                <input type="file" id="modalImages" name="images[]" multiple class="file-input" onChange="updateFileNames()">
+                <div class="flex flex-col items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a20 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p class="text-sm text-gray-600 mb-1 font-medium">Drag & drop vehicle images here</p>
+                  <p class="text-xs text-gray-500">or click to browse files</p>
+                </div>
+                <div id="fileNames" class="mt-3 text-gray-600 text-xs space-y-1"></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">Maximum file size: 5MB. Accepted formats: JPG, JPEG, PNG, WEBP</p>
+            </div>
           </form>
         </div>
         <div class="flex justify-end border-t p-6 space-x-3">
@@ -837,7 +852,7 @@ $currentYear = date('Y');
       // Toggle filters visibility
       const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
       const filterOptions = document.getElementById('filterOptions');
-      
+
       if (toggleFiltersBtn && filterOptions) {
         toggleFiltersBtn.addEventListener('click', function() {
           filterOptions.classList.toggle('hidden');
@@ -934,4 +949,5 @@ $currentYear = date('Y');
     });
   </script>
 </body>
+
 </html>
