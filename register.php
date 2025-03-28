@@ -1,7 +1,11 @@
 <?php
-// Include database configuration
+session_start();
+// Include necessary configuration and helper functions
 require_once 'config/db.php';
-
+require_once 'includes/helpers.php';
+// Get site settings and assets
+$site_settings = get_all_settings();
+$site_assets = get_all_assets();
 // Initialize variables for form data and errors
 $firstName = $lastName = $email = $phone = $password = $confirmPassword = "";
 $firstNameErr = $lastNameErr = $emailErr = $phoneErr = $passwordErr = $confirmPasswordErr = $termsErr = "";
@@ -153,7 +157,16 @@ function test_input($data)
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
-  <title>Register - CentralAutogy</title>
+
+  <!-- Dynamic Page Title -->
+  <title><?php echo htmlspecialchars($site_settings['site_name'] ?? 'CentralAutogy'); ?> - <?php echo $page_title ?? 'Car Inventory Management'; ?></title>
+
+  <!-- Favicon Handling -->
+  <?php
+  // Prioritize assets table, then fall back to site settings
+  $favicon_path = $site_assets['favicon'] ?? $site_settings['favicon_path'] ?? 'assets/img/fav.png';
+  ?>
+  <link rel="shortcut icon" href="<?php echo htmlspecialchars($favicon_path); ?>" type="image/x-icon">
   <link rel="stylesheet" href="assets/css/register.css">
 </head>
 

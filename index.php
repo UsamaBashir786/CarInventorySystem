@@ -1,7 +1,12 @@
 <?php
 session_start();
-// Include database connection
+// Include necessary configuration and helper functions
 require_once 'config/db.php';
+require_once 'includes/helpers.php';
+
+// Get site settings and assets
+$site_settings = get_all_settings();
+$site_assets = get_all_assets();
 
 // Initialize filters and search params from GET request
 $searchKeyword = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -278,36 +283,20 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
 <html>
 
 <head>
-  <?php
-  // Function to get settings from database
-  function getSettings($conn)
-  {
-    $settings = array();
-    $site_settings = getSettings($conn);
 
-    // Use the correct column names: setting_key instead of setting_name
-    $result = $conn->query("SELECT setting_key, setting_value FROM site_settings");
-
-    if ($result) {
-      while ($row = $result->fetch_assoc()) {
-        // Store settings with key as the array key for easy access
-        $settings[$row['setting_key']] = $row['setting_value'];
-      }
-    }
-
-    return $settings;
-  }
-  ?>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="src/output.css" rel="stylesheet">
+
+  <!-- Dynamic Page Title -->
   <title><?php echo htmlspecialchars($site_settings['site_name'] ?? 'CentralAutogy'); ?> - <?php echo $page_title ?? 'Car Inventory Management'; ?></title>
 
-  <?php if (!empty($site_settings['favicon_path'])): ?>
-    <link rel="shortcut icon" href="<?php echo '/' . $site_settings['favicon_path']; ?>" type="image/x-icon">
-  <?php else: ?>
-    <link rel="shortcut icon" href="assets/img/fav.png" type="image/x-icon">
-  <?php endif; ?>
+  <!-- Favicon Handling -->
+  <?php
+  // Prioritize assets table, then fall back to site settings
+  $favicon_path = $site_assets['favicon'] ?? $site_settings['favicon_path'] ?? 'assets/img/fav.png';
+  ?>
+  <link rel="shortcut icon" href="<?php echo htmlspecialchars($favicon_path); ?>" type="image/x-icon">
   <style>
     /* Custom styles for the range slider */
     .range-slider {
