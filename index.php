@@ -191,11 +191,17 @@ function getVehicles(
   $countStmt->close();
 
   // Add sorting
+  // Add sorting
   $validSortFields = ['price', 'year', 'mileage', 'created_at'];
   $sortField = in_array($sortField, $validSortFields) ? $sortField : 'created_at';
   $sortOrder = ($sortOrder === 'ASC') ? 'ASC' : 'DESC';
 
-  $query .= " ORDER BY v.$sortField $sortOrder";
+  // Special handling for price sorting to handle nulls
+  if ($sortField === 'price') {
+    $query .= " ORDER BY v.$sortField IS NULL, v.$sortField $sortOrder";
+  } else {
+    $query .= " ORDER BY v.$sortField $sortOrder";
+  }
 
   // Add pagination
   $query .= " LIMIT ?, ?";
@@ -663,7 +669,11 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
                   <div class="flex justify-between items-end">
                     <div>
                       <span class="text-gray-500 text-xs">Price</span>
-                      <p class="text-indigo-600 font-semibold text-xl">$<?php echo number_format($vehicle['price'], 2); ?></p>
+                      <?php if ($vehicle['price'] !== null && $vehicle['price'] != 0): ?>
+                        <p class="text-indigo-600 font-semibold text-xl">$<?php echo number_format($vehicle['price'], 2); ?></p>
+                      <?php else: ?>
+                        <p class="text-indigo-600 font-semibold text-xl">Contact for price</p>
+                      <?php endif; ?>
                     </div>
                     <a href="car-details.php?id=<?php echo $vehicle['id']; ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                       ViewDetails

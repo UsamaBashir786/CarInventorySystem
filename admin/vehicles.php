@@ -819,5 +819,125 @@
     <script id="allModelsData" type="application/json">
       <?php echo json_encode($allModels); ?>
     </script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Get elements
+        const deleteButtons = document.querySelectorAll('.delete-vehicle');
+        const deleteModal = document.getElementById('deleteVehicleModal');
+        const deleteForm = document.getElementById('deleteVehicleForm');
+        const deleteVehicleId = document.getElementById('deleteVehicleId');
+        const deleteVehicleMessage = document.getElementById('deleteVehicleMessage');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+
+        // Modal for adding a new vehicle
+        const addNewCarBtn = document.getElementById('addNewCarBtn');
+        const addVehicleModal = document.getElementById('addVehicleModal');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+
+        // Filter toggle
+        const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+        const filterOptions = document.getElementById('filterOptions');
+
+        // Make dropdown change handler
+        const makeDropdown = document.getElementById('modalMake');
+        const modelDropdown = document.getElementById('modalModel');
+
+        // Get models data from PHP
+        let allModels;
+        try {
+          const modelsDataElement = document.getElementById('allModelsData');
+          if (modelsDataElement) {
+            allModels = JSON.parse(modelsDataElement.textContent);
+          }
+        } catch (e) {
+          console.error('Error parsing models data:', e);
+          allModels = {};
+        }
+
+        // Delete vehicle button click
+        deleteButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            const vehicleId = this.getAttribute('data-id');
+            const vehicleName = this.getAttribute('data-name');
+
+            deleteVehicleId.value = vehicleId;
+            deleteVehicleMessage.textContent = `Are you sure you want to delete "${vehicleName}"? This action cannot be undone.`;
+
+            // Show delete modal
+            deleteModal.classList.remove('hidden');
+          });
+        });
+
+        // Cancel delete button
+        cancelDeleteBtn.addEventListener('click', function() {
+          deleteModal.classList.add('hidden');
+        });
+
+        // Add New Vehicle button
+        if (addNewCarBtn) {
+          addNewCarBtn.addEventListener('click', function() {
+            addVehicleModal.classList.remove('hidden');
+          });
+        }
+
+        // Cancel Add button
+        if (cancelAddBtn) {
+          cancelAddBtn.addEventListener('click', function() {
+            addVehicleModal.classList.add('hidden');
+          });
+        }
+
+        // Toggle filters
+        if (toggleFiltersBtn) {
+          toggleFiltersBtn.addEventListener('click', function() {
+            filterOptions.classList.toggle('hidden');
+          });
+        }
+
+        // Make dropdown change event
+        if (makeDropdown && modelDropdown) {
+          makeDropdown.addEventListener('change', function() {
+            updateModelDropdown(this.value);
+          });
+        }
+
+        // Function to update model dropdown based on selected make
+        function updateModelDropdown(makeId) {
+          // Clear current options
+          modelDropdown.innerHTML = '<option value="">Select Model</option>';
+
+          if (!makeId) return;
+
+          // Ensure makeId is treated as a string for consistent lookup
+          const makeIdStr = makeId.toString();
+
+          // Check if models exist for this make
+          if (allModels[makeIdStr] && Array.isArray(allModels[makeIdStr]) && allModels[makeIdStr].length > 0) {
+            // Add models to dropdown
+            allModels[makeIdStr].forEach(function(model) {
+              const option = document.createElement('option');
+              option.value = model.id;
+              option.textContent = model.name;
+              modelDropdown.appendChild(option);
+            });
+          } else {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No models available for this make";
+            modelDropdown.appendChild(option);
+          }
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+          if (event.target === deleteModal) {
+            deleteModal.classList.add('hidden');
+          }
+          if (event.target === addVehicleModal) {
+            addVehicleModal.classList.add('hidden');
+          }
+        });
+      });
+    </script>
 
     <script>

@@ -108,7 +108,7 @@ $brochureData = array(
   'make' => $vehicle['make'],
   'model' => $vehicle['model'],
   'year' => $vehicle['year'],
-  'price' => $vehicle['price'],
+  'price' => $vehicle['price'] !== null ? $vehicle['price'] : 'Contact for price',
   'mileage' => $vehicle['mileage'],
   'vin' => $vehicle['vin'],
   'status' => $vehicle['status'],
@@ -374,10 +374,14 @@ $shareData = json_encode($brochureData);
         </p>
       </div>
       <div class="mt-4 md:mt-0">
-        <div class="text-2xl md:text-3xl font-bold text-indigo-600">$<?php echo number_format($vehicle['price'], 0); ?></div>
-        <div class="text-gray-500 text-sm">
-          Est. $<?php echo number_format($vehicle['price'] / 60, 0); ?>/month*
-        </div>
+        <?php if ($vehicle['price'] !== null && $vehicle['price'] != 0): ?>
+          <div class="text-2xl md:text-3xl font-bold text-indigo-600">$<?php echo number_format($vehicle['price'], 0); ?></div>
+          <div class="text-gray-500 text-sm">
+            Est. $<?php echo number_format($vehicle['price'] / 60, 0); ?>/month*
+          </div>
+        <?php else: ?>
+          <div class="text-2xl md:text-3xl font-bold text-indigo-600">Contact for price</div>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -762,7 +766,11 @@ $shareData = json_encode($brochureData);
                 </p>
                 <div class="flex justify-between items-end">
                   <div>
-                    <p class="text-indigo-600 font-semibold text-lg">$<?php echo number_format($similarVehicle['price']); ?></p>
+                    <?php if ($similarVehicle['price'] !== null && $similarVehicle['price'] != 0): ?>
+                      <p class="text-indigo-600 font-semibold text-lg">$<?php echo number_format($similarVehicle['price']); ?></p>
+                    <?php else: ?>
+                      <p class="text-indigo-600 font-semibold text-lg">Contact for price</p>
+                    <?php endif; ?>
                   </div>
                   <a href="car-details.php?id=<?php echo $similarVehicle['id']; ?>" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">View Details</a>
                 </div>
