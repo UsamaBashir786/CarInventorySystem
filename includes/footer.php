@@ -65,23 +65,6 @@ if (!function_exists('get_setting')) {
           </li>
         </ul>
       </div>
-
-      <!-- Newsletter -->
-      <div>
-        <h4 class="text-lg font-semibold mb-4">Newsletter</h4>
-        <p class="text-gray-400 mb-4">Subscribe to our newsletter for the latest updates on new inventory and special offers.</p>
-        <form class="mb-2" action="subscribe.php" method="post">
-          <div class="flex">
-            <input type="email" name="email" placeholder="Your email address" class="px-4 py-2 w-full rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800">
-            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-r-lg text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-            </button>
-          </div>
-        </form>
-        <p class="text-xs text-gray-500">We respect your privacy. Unsubscribe at any time.</p>
-      </div>
     </div>
 
     <div class="border-t border-gray-700 mt-10 pt-6">
