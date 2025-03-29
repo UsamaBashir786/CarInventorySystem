@@ -78,6 +78,61 @@ while ($image = $images_result->fetch_assoc()) {
 }
 $images_stmt->close();
 
+// Get vehicle features
+function getVehicleFeatures($vehicleId)
+{
+  $conn = getConnection();
+  $features = [];
+
+  $query = "SELECT feature_id FROM vehicle_features WHERE vehicle_id = ?";
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $vehicleId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  while ($row = $result->fetch_assoc()) {
+    $features[] = $row['feature_id'];
+  }
+
+  $stmt->close();
+  $conn->close();
+
+  return $features;
+}
+
+// Get all features from database
+function getAllFeatures()
+{
+  $conn = getConnection();
+  $features = [];
+
+  $sql = "SELECT id, name, category FROM features ORDER BY category, name";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+      $features[] = $row;
+    }
+  }
+
+  $conn->close();
+  return $features;
+}
+
+// Get all features and organize by category
+$allFeatures = getAllFeatures();
+$featuresByCategory = [];
+foreach ($allFeatures as $feature) {
+  $category = $feature['category'] ?: 'Other';
+  if (!isset($featuresByCategory[$category])) {
+    $featuresByCategory[$category] = [];
+  }
+  $featuresByCategory[$category][] = $feature;
+}
+
+// Get vehicle features
+$vehicleFeatures = getVehicleFeatures($vehicle_id);
+
 // Function to get dropdown options
 function getDropdownOptions()
 {
@@ -382,30 +437,30 @@ echo "<!-- Available columns: " . implode(', ', $columns) . " -->";
             <div class="bg-gray-50 p-5 rounded-lg space-y-4 col-span-1 md:col-span-2 mt-6">
               <h3 class="text-lg font-bold text-gray-800 mb-2">Vehicle Features</h3>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <?php foreach ($featuresByCategory as $category => $categoryFeatures): ?>
-                  <div class="bg-white p-3 rounded-lg">
-                    <h4 class="font-medium text-gray-700 mb-2"><?php echo htmlspecialchars($category); ?></h4>
-                    <div class="space-y-2">
-                      <?php foreach ($categoryFeatures as $feature): ?>
-                        <div class="flex items-center">
-                          <input type="checkbox"
-                            id="feature_<?php echo $feature['id']; ?>"
-                            name="features[]"
-                            value="<?php echo $feature['id']; ?>"
-                            <?php echo in_array($feature['id'], $vehicleFeatures) ? 'checked' : ''; ?>
-                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                          <label for="feature_<?php echo $feature['id']; ?>" class="ml-2 block text-sm text-gray-700">
-                            <?php echo htmlspecialchars($feature['name']); ?>
-                          </label>
-                        </div>
-                      <?php endforeach; ?>
+              <?php if (!empty($featuresByCategory)): ?>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <?php foreach ($featuresByCategory as $category => $categoryFeatures): ?>
+                    <div class="bg-white p-3 rounded-lg">
+                      <h4 class="font-medium text-gray-700 mb-2"><?php echo htmlspecialchars($category); ?></h4>
+                      <div class="space-y-2">
+                        <?php foreach ($categoryFeatures as $feature): ?>
+                          <div class="flex items-center">
+                            <input type="checkbox"
+                              id="feature_<?php echo $feature['id']; ?>"
+                              name="features[]"
+                              value="<?php echo $feature['id']; ?>"
+                              <?php echo in_array($feature['id'], $vehicleFeatures) ? 'checked' : ''; ?>
+                              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="feature_<?php echo $feature['id']; ?>" class="ml-2 block text-sm text-gray-700">
+                              <?php echo htmlspecialchars($feature['name']); ?>
+                            </label>
+                          </div>
+                        <?php endforeach; ?>
+                      </div>
                     </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-
-              <?php if (empty($allFeatures)): ?>
+                  <?php endforeach; ?>
+                </div>
+              <?php else: ?>
                 <div class="bg-yellow-50 p-4 rounded-lg">
                   <p class="text-sm text-yellow-700">No features found. You can add features in the "Manage Dropdowns" section.</p>
                 </div>

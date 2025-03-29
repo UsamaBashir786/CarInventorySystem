@@ -182,30 +182,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       }
       $statusStmt->close();
     }
-    // Add this code to process_add_vehicle.php after the vehicle has been successfully inserted
-    // This should be placed inside the existing try block right after: 
-    // if ($stmt->affected_rows > 0) {
-    //   $vehicleId = $conn->insert_id;
 
-    // Process features if any were selected
-    if (isset($_POST['features']) && is_array($_POST['features']) && !empty($_POST['features'])) {
-      $featureIds = array_map('intval', $_POST['features']);
-
-      // Insert features into the junction table
-      foreach ($featureIds as $featureId) {
-        if ($featureId > 0) { // Make sure it's a valid ID
-          $featureQuery = "INSERT INTO vehicle_features (vehicle_id, feature_id) VALUES (?, ?)";
-          $featureStmt = $conn->prepare($featureQuery);
-          $featureStmt->bind_param("ii", $vehicleId, $featureId);
-          $featureStmt->execute();
-          $featureStmt->close();
-        }
-      }
-
-      error_log("Added " . count($featureIds) . " features to vehicle #" . $vehicleId);
-    }
-
-    // Continue with the existing code for image handling...
     // Other fields
     $engine = isset($_POST['engine']) ? trim($_POST['engine']) : '';
     $description = isset($_POST['description']) ? trim($_POST['description']) : '';
@@ -248,6 +225,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt->affected_rows > 0) {
       $vehicleId = $conn->insert_id;
       error_log("Vehicle added with ID: " . $vehicleId);
+
+      // Process features if any were selected - MOVED HERE AFTER $vehicleId is defined
+      if (isset($_POST['features']) && is_array($_POST['features']) && !empty($_POST['features'])) {
+        $featureIds = array_map('intval', $_POST['features']);
+
+        // Insert features into the junction table
+        foreach ($featureIds as $featureId) {
+          if ($featureId > 0) { // Make sure it's a valid ID
+            $featureQuery = "INSERT INTO vehicle_features (vehicle_id, feature_id) VALUES (?, ?)";
+            $featureStmt = $conn->prepare($featureQuery);
+            $featureStmt->bind_param("ii", $vehicleId, $featureId);
+            $featureStmt->execute();
+            $featureStmt->close();
+          }
+        }
+
+        error_log("Added " . count($featureIds) . " features to vehicle #" . $vehicleId);
+      }
 
       // Handle image uploads if any
       if (isset($_FILES['images']) && !empty($_FILES['images']['name'][0])) {
