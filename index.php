@@ -164,21 +164,19 @@ function getVehicles(
     $params[] = $filterYearMax;
     $types .= "i";
   }
-
   if ($filterPriceMin > 0) {
-    $query .= " AND v.price >= ?";
-    $countQuery .= " AND v.price >= ?";
+    $query .= " AND (v.price >= ? OR v.price IS NULL)";
+    $countQuery .= " AND (v.price >= ? OR v.price IS NULL)";
     $params[] = $filterPriceMin;
     $types .= "d";
   }
 
   if ($filterPriceMax > 0) {
-    $query .= " AND v.price <= ?";
-    $countQuery .= " AND v.price <= ?";
+    $query .= " AND (v.price <= ? OR v.price IS NULL)";
+    $countQuery .= " AND (v.price <= ? OR v.price IS NULL)";
     $params[] = $filterPriceMax;
     $types .= "d";
   }
-
   // Get the total count of vehicles matching the filters
   $countStmt = $conn->prepare($countQuery);
   if (!empty($params)) {
@@ -481,20 +479,33 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
           </div>
 
           <form action="index.php" method="GET" id="desktopFilterForm">
-            <!-- Price Range -->
+            <!-- Desktop Price Range (Modified) -->
             <div class="mb-6">
               <h4 class="font-medium text-gray-800 mb-3">Price Range</h4>
               <div class="mb-4">
-                <input type="range" min="0" max="100000" step="1000" value="<?php echo $filterPriceMax > 0 ? $filterPriceMax : 50000; ?>"
-                  class="range-slider" id="priceRange" name="filter_price_max">
-                <div class="flex justify-between mt-2 text-sm text-gray-600">
+                <!-- Min Price -->
+                <label class="block text-sm text-gray-600 mb-1">Minimum Price</label>
+                <input type="range" min="0" max="100000" step="1000"
+                  value="<?php echo $filterPriceMin > 0 ? $filterPriceMin : 0; ?>"
+                  class="range-slider" id="priceRangeMin" name="filter_price_min">
+                <div class="flex justify-between mt-1 mb-3 text-sm text-gray-600">
                   <span>$0</span>
-                  <span id="priceValue">$<?php echo number_format($filterPriceMax > 0 ? $filterPriceMax : 50000); ?></span>
+                  <span id="priceMinValue">$<?php echo number_format($filterPriceMin > 0 ? $filterPriceMin : 0); ?></span>
+                  <span>$100k</span>
+                </div>
+
+                <!-- Max Price -->
+                <label class="block text-sm text-gray-600 mb-1">Maximum Price</label>
+                <input type="range" min="0" max="100000" step="1000"
+                  value="<?php echo $filterPriceMax > 0 ? $filterPriceMax : 100000; ?>"
+                  class="range-slider" id="priceRangeMax" name="filter_price_max">
+                <div class="flex justify-between mt-1 text-sm text-gray-600">
+                  <span>$0</span>
+                  <span id="priceMaxValue">$<?php echo number_format($filterPriceMax > 0 ? $filterPriceMax : 100000); ?></span>
                   <span>$100k+</span>
                 </div>
               </div>
             </div>
-
             <!-- Make -->
             <div class="mb-6">
               <h4 class="font-medium text-gray-800 mb-3">Make</h4>
@@ -871,6 +882,59 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
   <?php include 'includes/footer.php'; ?>
 
   <script>
+    // Price range sliders
+    const priceRangeMin = document.getElementById('priceRangeMin');
+    const priceMinValue = document.getElementById('priceMinValue');
+    const priceRangeMax = document.getElementById('priceRangeMax');
+    const priceMaxValue = document.getElementById('priceMaxValue');
+    const mobilePriceRangeMin = document.getElementById('mobilePriceRangeMin');
+    const mobilePriceMinValue = document.getElementById('mobilePriceMinValue');
+    const mobilePriceRangeMax = document.getElementById('mobilePriceRangeMax');
+    const mobilePriceMaxValue = document.getElementById('mobilePriceMaxValue');
+
+    // Update price value displays
+    priceRangeMin.addEventListener('input', function() {
+      const value = this.value;
+      priceMinValue.textContent = '$' + Number(value).toLocaleString();
+
+      // Ensure min doesn't exceed max
+      if (parseInt(value) > parseInt(priceRangeMax.value)) {
+        priceRangeMax.value = value;
+        priceMaxValue.textContent = '$' + Number(value).toLocaleString();
+      }
+    });
+
+    priceRangeMax.addEventListener('input', function() {
+      const value = this.value;
+      priceMaxValue.textContent = '$' + Number(value).toLocaleString();
+
+      // Ensure max doesn't go below min
+      if (parseInt(value) < parseInt(priceRangeMin.value)) {
+        priceRangeMin.value = value;
+        priceMinValue.textContent = '$' + Number(value).toLocaleString();
+      }
+    });
+
+    // Do the same for mobile
+    mobilePriceRangeMin.addEventListener('input', function() {
+      const value = this.value;
+      mobilePriceMinValue.textContent = '$' + Number(value).toLocaleString();
+
+      if (parseInt(value) > parseInt(mobilePriceRangeMax.value)) {
+        mobilePriceRangeMax.value = value;
+        mobilePriceMaxValue.textContent = '$' + Number(value).toLocaleString();
+      }
+    });
+
+    mobilePriceRangeMax.addEventListener('input', function() {
+      const value = this.value;
+      mobilePriceMaxValue.textContent = '$' + Number(value).toLocaleString();
+
+      if (parseInt(value) < parseInt(mobilePriceRangeMin.value)) {
+        mobilePriceRangeMin.value = value;
+        mobilePriceMinValue.textContent = '$' + Number(value).toLocaleString();
+      }
+    });
     // Price range slider
     const priceRange = document.getElementById('priceRange');
     const priceValue = document.getElementById('priceValue');
