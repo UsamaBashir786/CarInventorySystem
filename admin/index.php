@@ -599,8 +599,9 @@ $totalVehicles = getTotalVehicleCount();
               <input type="text" id="modalMileage" name="mileage" placeholder="e.g. 15000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
             </div>
             <div>
-              <label for="modalPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-              <input type="text" id="modalPrice" name="price" placeholder="e.g. 25000.00" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <label for="modalPrice" class="block text-sm font-medium text-gray-700 mb-1">Price (Optional)</label>
+              <input type="text" id="modalPrice" name="price" placeholder="Leave empty for no price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+              <p class="text-xs text-gray-500 mt-1">Leave empty if price is not available or negotiable</p>
             </div>
             <div>
               <label for="modalVIN" class="block text-sm font-medium text-gray-700 mb-1">VIN</label>

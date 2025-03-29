@@ -259,7 +259,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['vehicle_id'])) {
   $year = isset($_POST['year']) ? intval($_POST['year']) : 0;
   $body_style = isset($_POST['body_style']) ? intval($_POST['body_style']) : 0;
   $mileage = isset($_POST['mileage']) ? filter_var($_POST['mileage'], FILTER_SANITIZE_NUMBER_INT) : 0;
-  $price = isset($_POST['price']) ? filter_var($_POST['price'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : 0;
+  $price = (isset($_POST['price']) && trim($_POST['price']) !== '') ?
+    filter_var($_POST['price'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) :
+    null;
   $vin = isset($_POST['vin']) ? mysqli_real_escape_string($conn, trim($_POST['vin'])) : '';
   $fuel_type = isset($_POST['fuel_type']) ? intval($_POST['fuel_type']) : 0;
   $transmission = isset($_POST['transmission']) ? intval($_POST['transmission']) : 0;
@@ -473,7 +475,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['vehicle_id'])) {
     $params[] = $mileage;
   }
 
-  if (in_array('price', $columns)) {
+  if ($price === null) {
+    $sql_parts[] = "price = NULL";
+  } else {
     $sql_parts[] = "price = ?";
     $types .= "d";
     $params[] = $price;

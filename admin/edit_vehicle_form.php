@@ -390,8 +390,9 @@ echo "<!-- Available columns: " . implode(', ', $columns) . " -->";
                   <input type="text" id="vin" name="vin" value="<?php echo htmlspecialchars($vehicle['vin']); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 </div>
                 <div>
-                  <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                  <input type="text" id="price" name="price" value="<?php echo $vehicle['price']; ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                  <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price (Optional)</label>
+                  <input type="text" id="price" name="price" value="<?php echo $vehicle['price'] ? $vehicle['price'] : ''; ?>" placeholder="Leave empty for no price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                  <p class="text-xs text-gray-500 mt-1">Leave empty if price is not available or negotiable</p>
                 </div>
                 <div>
                   <label for="mileage" class="block text-sm font-medium text-gray-700 mb-1">Mileage</label>

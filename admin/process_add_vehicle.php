@@ -74,7 +74,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Other fields
     $year = isset($_POST['year']) ? intval($_POST['year']) : 0;
-    $price = isset($_POST['price']) ? floatval(str_replace(',', '', $_POST['price'])) : 0;
+    $price = (isset($_POST['price']) && trim($_POST['price']) !== '') ?
+      floatval(str_replace(',', '', $_POST['price'])) :
+      null;
     $mileage = isset($_POST['mileage']) ? intval(str_replace(',', '', $_POST['mileage'])) : 0;
     $vin = isset($_POST['vin']) ? trim($_POST['vin']) : '';
     $condition = 'New'; // Default condition

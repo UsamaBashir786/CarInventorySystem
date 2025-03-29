@@ -58,7 +58,8 @@ $query = "SELECT
     vs.name as status_name,
     vs.css_class as status_css,
     a.username as created_by_username,
-    a2.username as updated_by_username
+    a2.username as updated_by_username,
+    CASE WHEN v.price IS NULL THEN 'contact_for_price' ELSE 'has_price' END as price_status
 FROM 
     vehicles v
     LEFT JOIN makes m1 ON v.make_id = m1.id
