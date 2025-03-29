@@ -28,6 +28,216 @@ if (!function_exists('getConnection')) {
   }
 }
 
+// Functions for features handling
+function getVehicleFeatures($vehicleId)
+{
+  $conn = getConnection();
+  $features = [];
+
+  $query = "SELECT feature_id FROM vehicle_features WHERE vehicle_id = ?";
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $vehicleId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  while ($row = $result->fetch_assoc()) {
+    $features[] = $row['feature_id'];
+  }
+
+  $stmt->close();
+  $conn->close();
+
+  return $features;
+}
+
+function getAllFeatures()
+{
+  $conn = getConnection();
+  $features = [];
+
+  $sql = "SELECT id, name, category FROM features ORDER BY category, name";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+      $features[] = $row;
+    }
+  }
+
+  $conn->close();
+  return $features;
+}
+
+// Function to process and save vehicle images
+function processVehicleImages($conn, $vehicle_id)
+{
+  // Create upload directory if it doesn't exist
+  $target_dir = "../uploads/vehicles/{$vehicle_id}/";
+  if (!file_exists($target_dir)) {
+    mkdir($target_dir, 0777, true);
+  }
+
+  $allowed_extensions = ['jpg', 'jpeg', 'png', 'webp'];
+  $max_file_size = 5 * 1024 * 1024; // 5MB
+
+  // Get current highest display order
+  $display_order = 1;
+  if ($conn->query("SHOW COLUMNS FROM `vehicle_images` LIKE 'display_order'")->num_rows > 0) {
+    $order_query = "SELECT MAX(display_order) as max_order FROM vehicle_images WHERE vehicle_id = ?";
+    $order_stmt = $conn->prepare($order_query);
+    $order_stmt->bind_param("i", $vehicle_id);
+    $order_stmt->execute();
+    $order_result = $order_stmt->get_result();
+    $order_row = $order_result->fetch_assoc();
+    $display_order = ($order_row['max_order'] !== null) ? $order_row['max_order'] + 1 : 1;
+    $order_stmt->close();
+  }
+
+  // Process each uploaded file
+  $file_count = count($_FILES['images']['name']);
+
+  for ($i = 0; $i < $file_count; $i++) {
+    if ($_FILES['images']['error'][$i] == 0) {
+      $tmp_name = $_FILES['images']['tmp_name'][$i];
+      $original_name = $_FILES['images']['name'][$i];
+      $file_size = $_FILES['images']['size'][$i];
+
+      // Get file extension
+      $file_ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+
+      // Check file size and type
+      if ($file_size > $max_file_size) {
+        $_SESSION['warnings'][] = "File {$original_name} exceeds the maximum size of 5MB.";
+        continue;
+      }
+
+      if (!in_array($file_ext, $allowed_extensions)) {
+        $_SESSION['warnings'][] = "File {$original_name} has an invalid extension. Only JPG, JPEG, PNG, and WEBP are allowed.";
+        continue;
+      }
+
+      // Generate a unique filename
+      $new_filename = uniqid('vehicle_') . '.' . $file_ext;
+      $target_file = $target_dir . $new_filename;
+
+      // Move the uploaded file
+      if (move_uploaded_file($tmp_name, $target_file)) {
+        // Insert image record into database
+        $image_path = "uploads/vehicles/{$vehicle_id}/{$new_filename}";
+
+        // Check if the columns exist in vehicle_images table
+        $columns = [];
+        $result = $conn->query("DESCRIBE vehicle_images");
+        while ($row = $result->fetch_assoc()) {
+          $columns[] = $row['Field'];
+        }
+
+        // Build the SQL statement properly
+        $columnNames = ["vehicle_id", "image_path"];
+        $placeholders = ["?", "?"];
+        $params = [$vehicle_id, $image_path];
+        $types = "is"; // vehicle_id (int) and image_path (string)
+
+        // Add optional columns if they exist in table
+        if (in_array('original_filename', $columns)) {
+          $columnNames[] = "original_filename";
+          $placeholders[] = "?";
+          $params[] = $original_name;
+          $types .= "s";
+        }
+
+        if (in_array('display_order', $columns)) {
+          $columnNames[] = "display_order";
+          $placeholders[] = "?";
+          $params[] = $display_order;
+          $types .= "i";
+        }
+
+        if (in_array('uploaded_by', $columns) && isset($_SESSION["admin_id"])) {
+          $columnNames[] = "uploaded_by";
+          $placeholders[] = "?";
+          $params[] = $_SESSION["admin_id"];
+          $types .= "i";
+        }
+
+        // Add timestamp columns
+        if (in_array('uploaded_at', $columns)) {
+          $columnNames[] = "uploaded_at";
+          $placeholders[] = "NOW()";
+        } else if (in_array('created_at', $columns)) {
+          $columnNames[] = "created_at";
+          $placeholders[] = "NOW()";
+        }
+
+        // Construct final SQL query
+        $sql = "INSERT INTO vehicle_images (" . implode(", ", $columnNames) . ") VALUES (" . implode(", ", $placeholders) . ")";
+
+        // Prepare statement
+        $stmt = $conn->prepare($sql);
+
+        if ($stmt) {
+          // Bind parameters (excluding the NOW() function)
+          if (!empty($params)) {
+            // Create references array for bind_param
+            $refs = [];
+            foreach ($params as $key => $value) {
+              $refs[$key] = &$params[$key];
+            }
+
+            // Call bind_param with dynamically created references
+            array_unshift($refs, $types);
+            call_user_func_array([$stmt, 'bind_param'], $refs);
+          }
+
+          $stmt->execute();
+          $stmt->close();
+
+          $display_order++;
+        } else {
+          $_SESSION['warnings'][] = "Failed to save image record for {$original_name}: " . $conn->error;
+        }
+      } else {
+        $_SESSION['warnings'][] = "Failed to upload {$original_name}.";
+      }
+    }
+  }
+}
+
+// Function to delete vehicle images
+function deleteVehicleImages($conn, $vehicle_id, $image_ids)
+{
+  if (!is_array($image_ids)) {
+    $image_ids = [$image_ids];
+  }
+
+  foreach ($image_ids as $image_id) {
+    $image_id = intval($image_id);
+
+    // Get image path
+    $stmt = $conn->prepare("SELECT image_path FROM vehicle_images WHERE id = ? AND vehicle_id = ?");
+    $stmt->bind_param("ii", $image_id, $vehicle_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+      $image_path = "../" . $row['image_path'];
+
+      // Delete from database
+      $delete_stmt = $conn->prepare("DELETE FROM vehicle_images WHERE id = ?");
+      $delete_stmt->bind_param("i", $image_id);
+      $delete_stmt->execute();
+      $delete_stmt->close();
+
+      // Delete file from server
+      if (file_exists($image_path)) {
+        unlink($image_path);
+      }
+    }
+
+    $stmt->close();
+  }
+}
+
 // First, check the structure of the vehicles table to determine column names
 $conn = getConnection();
 $table_structure_query = "DESCRIBE vehicles";
@@ -386,6 +596,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['vehicle_id'])) {
   }
 
   if ($stmt->execute()) {
+    // Handle features - first remove all existing features
+    $deleteFeatures = $conn->prepare("DELETE FROM vehicle_features WHERE vehicle_id = ?");
+    $deleteFeatures->bind_param("i", $vehicle_id);
+    $deleteFeatures->execute();
+    $deleteFeatures->close();
+
+    // Then add the newly selected features
+    if (isset($_POST['features']) && is_array($_POST['features']) && !empty($_POST['features'])) {
+      $featureIds = array_map('intval', $_POST['features']);
+
+      foreach ($featureIds as $featureId) {
+        if ($featureId > 0) { // Make sure it's a valid ID
+          $featureQuery = "INSERT INTO vehicle_features (vehicle_id, feature_id) VALUES (?, ?)";
+          $featureStmt = $conn->prepare($featureQuery);
+          $featureStmt->bind_param("ii", $vehicle_id, $featureId);
+          $featureStmt->execute();
+          $featureStmt->close();
+        }
+      }
+    }
+
     // Process images if uploaded
     if (isset($_FILES['images']) && !empty($_FILES['images']['name'][0])) {
       processVehicleImages($conn, $vehicle_id);
@@ -412,177 +643,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['vehicle_id'])) {
   // If not a POST request or vehicle_id not provided, redirect
   header("Location: vehicles.php");
   exit;
-}
-
-// Function to process and save vehicle images
-function processVehicleImages($conn, $vehicle_id)
-{
-  // Create upload directory if it doesn't exist
-  $target_dir = "../uploads/vehicles/{$vehicle_id}/";
-  if (!file_exists($target_dir)) {
-    mkdir($target_dir, 0777, true);
-  }
-
-  $allowed_extensions = ['jpg', 'jpeg', 'png', 'webp'];
-  $max_file_size = 5 * 1024 * 1024; // 5MB
-
-  // Get current highest display order
-  $display_order = 1;
-  if ($conn->query("SHOW COLUMNS FROM `vehicle_images` LIKE 'display_order'")->num_rows > 0) {
-    $order_query = "SELECT MAX(display_order) as max_order FROM vehicle_images WHERE vehicle_id = ?";
-    $order_stmt = $conn->prepare($order_query);
-    $order_stmt->bind_param("i", $vehicle_id);
-    $order_stmt->execute();
-    $order_result = $order_stmt->get_result();
-    $order_row = $order_result->fetch_assoc();
-    $display_order = ($order_row['max_order'] !== null) ? $order_row['max_order'] + 1 : 1;
-    $order_stmt->close();
-  }
-
-  // Process each uploaded file
-  $file_count = count($_FILES['images']['name']);
-
-  for ($i = 0; $i < $file_count; $i++) {
-    if ($_FILES['images']['error'][$i] == 0) {
-      $tmp_name = $_FILES['images']['tmp_name'][$i];
-      $original_name = $_FILES['images']['name'][$i];
-      $file_size = $_FILES['images']['size'][$i];
-
-      // Get file extension
-      $file_ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
-
-      // Check file size and type
-      if ($file_size > $max_file_size) {
-        $_SESSION['warnings'][] = "File {$original_name} exceeds the maximum size of 5MB.";
-        continue;
-      }
-
-      if (!in_array($file_ext, $allowed_extensions)) {
-        $_SESSION['warnings'][] = "File {$original_name} has an invalid extension. Only JPG, JPEG, PNG, and WEBP are allowed.";
-        continue;
-      }
-
-      // Generate a unique filename
-      $new_filename = uniqid('vehicle_') . '.' . $file_ext;
-      $target_file = $target_dir . $new_filename;
-
-      // Move the uploaded file
-      if (move_uploaded_file($tmp_name, $target_file)) {
-        // Insert image record into database
-        $image_path = "uploads/vehicles/{$vehicle_id}/{$new_filename}";
-
-        // Check if the columns exist in vehicle_images table
-        $columns = [];
-        $result = $conn->query("DESCRIBE vehicle_images");
-        while ($row = $result->fetch_assoc()) {
-          $columns[] = $row['Field'];
-        }
-
-        // Build the SQL statement properly
-        $columnNames = ["vehicle_id", "image_path"];
-        $placeholders = ["?", "?"];
-        $params = [$vehicle_id, $image_path];
-        $types = "is"; // vehicle_id (int) and image_path (string)
-
-        // Add optional columns if they exist in table
-        if (in_array('original_filename', $columns)) {
-          $columnNames[] = "original_filename";
-          $placeholders[] = "?";
-          $params[] = $original_name;
-          $types .= "s";
-        }
-
-        if (in_array('display_order', $columns)) {
-          $columnNames[] = "display_order";
-          $placeholders[] = "?";
-          $params[] = $display_order;
-          $types .= "i";
-        }
-
-        if (in_array('uploaded_by', $columns) && isset($_SESSION["admin_id"])) {
-          $columnNames[] = "uploaded_by";
-          $placeholders[] = "?";
-          $params[] = $_SESSION["admin_id"];
-          $types .= "i";
-        }
-
-        // Add timestamp columns
-        if (in_array('uploaded_at', $columns)) {
-          $columnNames[] = "uploaded_at";
-          $placeholders[] = "NOW()";
-        } else if (in_array('created_at', $columns)) {
-          $columnNames[] = "created_at";
-          $placeholders[] = "NOW()";
-        }
-
-        // Construct final SQL query
-        $sql = "INSERT INTO vehicle_images (" . implode(", ", $columnNames) . ") VALUES (" . implode(", ", $placeholders) . ")";
-
-        // For debugging
-        // $_SESSION['debug_sql'] = $sql;
-
-        // Prepare statement
-        $stmt = $conn->prepare($sql);
-
-        if ($stmt) {
-          // Bind parameters (excluding the NOW() function)
-          if (!empty($params)) {
-            // Create references array for bind_param
-            $refs = [];
-            foreach ($params as $key => $value) {
-              $refs[$key] = &$params[$key];
-            }
-
-            // Call bind_param with dynamically created references
-            array_unshift($refs, $types);
-            call_user_func_array([$stmt, 'bind_param'], $refs);
-          }
-
-          $stmt->execute();
-          $stmt->close();
-
-          $display_order++;
-        } else {
-          $_SESSION['warnings'][] = "Failed to save image record for {$original_name}: " . $conn->error;
-        }
-      } else {
-        $_SESSION['warnings'][] = "Failed to upload {$original_name}.";
-      }
-    }
-  }
-}
-
-// Function to delete vehicle images
-function deleteVehicleImages($conn, $vehicle_id, $image_ids)
-{
-  if (!is_array($image_ids)) {
-    $image_ids = [$image_ids];
-  }
-
-  foreach ($image_ids as $image_id) {
-    $image_id = intval($image_id);
-
-    // Get image path
-    $stmt = $conn->prepare("SELECT image_path FROM vehicle_images WHERE id = ? AND vehicle_id = ?");
-    $stmt->bind_param("ii", $image_id, $vehicle_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($row = $result->fetch_assoc()) {
-      $image_path = "../" . $row['image_path'];
-
-      // Delete from database
-      $delete_stmt = $conn->prepare("DELETE FROM vehicle_images WHERE id = ?");
-      $delete_stmt->bind_param("i", $image_id);
-      $delete_stmt->execute();
-      $delete_stmt->close();
-
-      // Delete file from server
-      if (file_exists($image_path)) {
-        unlink($image_path);
-      }
-    }
-
-    $stmt->close();
-  }
 }

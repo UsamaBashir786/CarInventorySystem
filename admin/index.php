@@ -283,7 +283,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_model'])) {
   header("Location: models.php");
   exit;
 }
+// Step 1: Query all features from the database (add this to the top of your file where you get other dropdown data)
+function getAllFeatures()
+{
+  $conn = getConnection();
+  $features = [];
 
+  $sql = "SELECT id, name, category FROM features ORDER BY category, name";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+      $features[] = $row;
+    }
+  }
+
+  $conn->close();
+  return $features;
+}
+
+// Step 2: Add this to your existing code where you get dropdown options
+$features = getAllFeatures();
+
+// Step 3: Organize features by category
+$featuresByCategory = [];
+foreach ($features as $feature) {
+  if (!isset($featuresByCategory[$feature['category']])) {
+    $featuresByCategory[$feature['category']] = [];
+  }
+  $featuresByCategory[$feature['category']][] = $feature;
+}
 // Fetch all models for display
 $conn = getConnection();
 $models = [];
@@ -639,7 +668,33 @@ $totalVehicles = getTotalVehicleCount();
               <label for="modalNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
               <textarea id="modalNotes" name="description" rows="2" placeholder="Additional information about the vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"></textarea>
             </div>
+            <div class="col-span-1 md:col-span-2 border-t pt-4 mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-3">Vehicle Features</label>
 
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <?php foreach ($featuresByCategory as $category => $categoryFeatures): ?>
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <h4 class="font-medium text-gray-700 mb-2"><?php echo htmlspecialchars($category); ?></h4>
+                    <div class="space-y-2">
+                      <?php foreach ($categoryFeatures as $feature): ?>
+                        <div class="flex items-center">
+                          <input type="checkbox" id="feature_<?php echo $feature['id']; ?>" name="features[]" value="<?php echo $feature['id']; ?>" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                          <label for="feature_<?php echo $feature['id']; ?>" class="ml-2 block text-sm text-gray-700">
+                            <?php echo htmlspecialchars($feature['name']); ?>
+                          </label>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+
+              <?php if (empty($features)): ?>
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                  <p class="text-sm text-yellow-700">No features found. You can add features in the "Manage Dropdowns" section.</p>
+                </div>
+              <?php endif; ?>
+            </div>
             <div class="col-span-1 md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Images</label>
               <div class="file-drop-area">

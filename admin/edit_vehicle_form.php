@@ -378,7 +378,39 @@ echo "<!-- Available columns: " . implode(', ', $columns) . " -->";
                 </div>
               </div>
             </div>
+            <!-- Features Section -->
+            <div class="bg-gray-50 p-5 rounded-lg space-y-4 col-span-1 md:col-span-2 mt-6">
+              <h3 class="text-lg font-bold text-gray-800 mb-2">Vehicle Features</h3>
 
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <?php foreach ($featuresByCategory as $category => $categoryFeatures): ?>
+                  <div class="bg-white p-3 rounded-lg">
+                    <h4 class="font-medium text-gray-700 mb-2"><?php echo htmlspecialchars($category); ?></h4>
+                    <div class="space-y-2">
+                      <?php foreach ($categoryFeatures as $feature): ?>
+                        <div class="flex items-center">
+                          <input type="checkbox"
+                            id="feature_<?php echo $feature['id']; ?>"
+                            name="features[]"
+                            value="<?php echo $feature['id']; ?>"
+                            <?php echo in_array($feature['id'], $vehicleFeatures) ? 'checked' : ''; ?>
+                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                          <label for="feature_<?php echo $feature['id']; ?>" class="ml-2 block text-sm text-gray-700">
+                            <?php echo htmlspecialchars($feature['name']); ?>
+                          </label>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+
+              <?php if (empty($allFeatures)): ?>
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                  <p class="text-sm text-yellow-700">No features found. You can add features in the "Manage Dropdowns" section.</p>
+                </div>
+              <?php endif; ?>
+            </div>
             <!-- Technical Details Section -->
             <div class="bg-gray-50 p-5 rounded-lg space-y-4">
               <h3 class="text-lg font-bold text-gray-800 mb-2">Technical Details</h3>
