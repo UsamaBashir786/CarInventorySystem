@@ -168,10 +168,10 @@ function handleFileUpload($file, $targetDir, $assetKey = null)
           mime_type = ?, 
           original_filename = ?, 
           updated_at = CURRENT_TIMESTAMP");
-        
+
         // Ensure all variables are prepared before binding
         $stmt->bind_param(
-          "sssssssss", 
+          "sssssssss",
           $assetKey,      // 1. asset_key
           $relativePath,  // 2. asset_path
           $assetType,     // 3. asset_type
@@ -182,7 +182,7 @@ function handleFileUpload($file, $targetDir, $assetKey = null)
           $mimeType,      // 8. mime_type (for update)
           $fileName       // 9. original_filename (for update)
         );
-        
+
         if (!$stmt->execute()) {
           // If database insertion fails, you might want to delete the uploaded file
           unlink($targetFile);
@@ -481,46 +481,6 @@ $conn->close();
         </div>
       </div>
 
-      <!-- Live Preview Section -->
-      <div class="mt-8 bg-white rounded-xl shadow-md p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">Live Preview</h3>
-        <p class="text-gray-600 mb-6">This is how your website header and footer will look with the current settings.</p>
-
-        <!-- Header Preview -->
-        <div class="border rounded-lg mb-6 overflow-hidden">
-          <div class="bg-gray-800 text-white p-3 font-medium">Header Preview</div>
-          <div class="p-4 flex items-center space-x-4">
-            <?php if (!empty($settings['navbar_logo_path'])): ?>
-              <img src="<?php echo '../' . htmlspecialchars($settings['navbar_logo_path']); ?>" alt="Navbar Logo" class="h-8">
-            <?php else: ?>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-              </svg>
-            <?php endif; ?>
-            <span class="text-lg font-bold text-gray-800"><?php echo htmlspecialchars($settings['site_name'] ?? 'CentralAutogy'); ?></span>
-          </div>
-        </div>
-
-        <!-- Footer Preview -->
-        <div class="border rounded-lg overflow-hidden">
-          <div class="bg-gray-800 text-white p-3 font-medium">Footer Preview</div>
-          <div class="p-4 bg-gray-700 text-white">
-            <div class="flex items-center space-x-2 mb-2">
-              <?php if (!empty($settings['footer_logo_path'])): ?>
-                <img src="<?php echo '../' . htmlspecialchars($settings['footer_logo_path']); ?>" alt="Footer Logo" class="h-7">
-                <? phpelse: ?>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h-5v-1h9V8h-1a1 1 0 00-1-1h-6a1 1 0 00-1 1v7.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1V5a1 1 0 00-1-1H3z" />
-                </svg>
-              <?php endif; ?>
-              <h3 class="text-lg font-bold"><?php echo htmlspecialchars($settings['site_name'] ?? 'CentralAutogy'); ?></h3>
-            </div>
-            <p class="text-gray-400 text-sm"><?php echo htmlspecialchars($settings['site_tagline'] ?? 'Your one-stop destination for finding the perfect vehicle'); ?></p>
-          </div>
-        </div>
-      </div>
 
     </main>
   </div>

@@ -131,13 +131,6 @@ $site_assets = get_all_assets();
             <p class="text-gray-700 mb-4">Founded in 2010, CentralAutogy began with a simple vision: to transform the car buying experience by making it more transparent, convenient, and enjoyable. What started as a small family-owned dealership has evolved into a premier destination for quality vehicles in the region.</p>
             <p class="text-gray-700 mb-4">Our founder, Michael Anderson, noticed that many customers found the traditional car-buying process stressful and overwhelming. Drawing from his 15 years of experience in the automotive industry, he established CentralAutogy on the principles of honesty, fair pricing, and exceptional customer service.</p>
             <p class="text-gray-700 mb-6">Today, we're proud to have helped thousands of customers find their perfect vehicle. Our dedicated team continues to uphold the same values that built our reputation, ensuring that every interaction leaves our customers satisfied and confident in their purchase.</p>
-            <div class="flex items-center">
-              <img src="https://images.unsplash.com/photo-1580043621114-aa7de27fae8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="Founder" class="w-12 h-12 rounded-full object-cover mr-4">
-              <div>
-                <p class="font-medium text-gray-900">Michael Anderson</p>
-                <p class="text-sm text-gray-600">Founder & CEO</p>
-              </div>
-            </div>
           </div>
           <div class="md:w-1/2">
             <img src="https://images.unsplash.com/photo-1560179707-f14e90ef3623?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2348&q=80" alt="CentralAutogy Dealership" class="rounded-lg shadow-lg w-full">

@@ -666,7 +666,7 @@ $totalPages = ceil($totalVehicles / $itemsPerPage);
                       <p class="text-indigo-600 font-semibold text-xl">$<?php echo number_format($vehicle['price'], 2); ?></p>
                     </div>
                     <a href="car-details.php?id=<?php echo $vehicle['id']; ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                      View Details
+                      ViewDetails
                     </a>
                   </div>
                 </div>
