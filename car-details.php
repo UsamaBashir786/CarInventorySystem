@@ -79,6 +79,32 @@ function getVehicleImages($conn, $vehicle_id)
   return $images;
 }
 
+// Function to get vehicle features from database
+function getVehicleFeatures($conn, $vehicle_id)
+{
+  $query = "SELECT f.id, f.name, f.category
+            FROM features f
+            JOIN vehicle_features vf ON f.id = vf.feature_id
+            WHERE vf.vehicle_id = ?
+            ORDER BY f.category, f.name";
+
+  $stmt = $conn->prepare($query);
+  $stmt->bind_param("i", $vehicle_id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  $features = [];
+  while ($row = $result->fetch_assoc()) {
+    if (!isset($features[$row['category']])) {
+      $features[$row['category']] = [];
+    }
+    $features[$row['category']][] = $row;
+  }
+
+  $stmt->close();
+  return $features;
+}
+
 // Get vehicle details
 $vehicle = getVehicleDetails($conn, $vehicle_id);
 
@@ -90,6 +116,9 @@ if ($vehicle === null) {
 
 // Get vehicle images
 $images = getVehicleImages($conn, $vehicle_id);
+
+// Get vehicle features
+$vehicle_features = getVehicleFeatures($conn, $vehicle_id);
 
 // Default image if no images found
 $defaultImage = "assets/images/placeholder.jpg";
@@ -320,6 +349,101 @@ $shareData = json_encode($brochureData);
     .toast-icon {
       margin-right: 0.75rem;
     }
+
+    /* Full image gallery */
+    .gallery-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .gallery-container.show {
+      display: flex;
+      opacity: 1;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .gallery-content {
+      position: relative;
+      width: 80%;
+      height: 80%;
+      max-width: 1200px;
+    }
+
+    .gallery-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .gallery-close {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      color: white;
+      font-size: 2rem;
+      cursor: pointer;
+    }
+
+    .gallery-nav {
+      position: absolute;
+      top: 50%;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      transform: translateY(-50%);
+      padding: 0 20px;
+    }
+
+    .gallery-nav button {
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .gallery-nav button:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .gallery-thumbnails {
+      position: absolute;
+      bottom: -70px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 10px 0;
+    }
+
+    .gallery-thumbnail {
+      width: 60px;
+      height: 40px;
+      object-fit: cover;
+      cursor: pointer;
+      opacity: 0.6;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .gallery-thumbnail.active {
+      opacity: 1;
+      border-color: white;
+    }
   </style>
 </head>
 
@@ -392,7 +516,7 @@ $shareData = json_encode($brochureData);
         <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
           <!-- Main Image -->
           <div class="relative aspect-video">
-            <img id="mainImage" src="<?php echo htmlspecialchars($primaryImage); ?>" alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?>" class="w-full h-full object-cover">
+            <img id="mainImage" src="<?php echo htmlspecialchars($primaryImage); ?>" alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?>" class="w-full h-full object-cover cursor-pointer">
           </div>
 
           <!-- Thumbnails -->
@@ -402,8 +526,9 @@ $shareData = json_encode($brochureData);
             <?php else: ?>
               <?php foreach (array_slice($images, 0, 5) as $index => $image): ?>
                 <img src="<?php echo htmlspecialchars($image['image_path']); ?>"
+                  data-index="<?php echo $index; ?>"
                   alt="<?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?>"
-                  class="gallery-thumb <?php echo $index === 0 ? 'active' : ''; ?> aspect-video object-cover rounded">
+                  class="gallery-thumb <?php echo $index === 0 ? 'active' : ''; ?> aspect-video object-cover rounded cursor-pointer">
               <?php endforeach; ?>
             <?php endif; ?>
           </div>
@@ -443,79 +568,63 @@ $shareData = json_encode($brochureData);
 
             <!-- Features Tab -->
             <div id="features" class="tab-content">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 class="font-medium text-gray-800 mb-3">Interior Features</h3>
-                  <ul class="space-y-2">
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      <?php echo $vehicle['transmission']; ?>
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      <?php echo $vehicle['interior_color']; ?> Interior
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Infotainment System
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Climate Control
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Power Windows/Locks
-                    </li>
-                  </ul>
+              <?php if (!empty($vehicle_features)): ?>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <?php foreach ($vehicle_features as $category => $features): ?>
+                    <div>
+                      <h3 class="font-medium text-gray-800 mb-3"><?php echo htmlspecialchars($category); ?> Features</h3>
+                      <ul class="space-y-2">
+                        <?php foreach ($features as $feature): ?>
+                          <li class="flex items-center text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            <?php echo htmlspecialchars($feature['name']); ?>
+                          </li>
+                        <?php endforeach; ?>
+                      </ul>
+                    </div>
+                  <?php endforeach; ?>
                 </div>
-
-                <div>
-                  <h3 class="font-medium text-gray-800 mb-3">Safety & Technology</h3>
-                  <ul class="space-y-2">
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Anti-lock Braking System
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Electronic Stability Control
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Airbag System
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Backup Camera
-                    </li>
-                    <li class="flex items-center text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      Bluetooth Connectivity
-                    </li>
-                  </ul>
+              <?php else: ?>
+                <!-- Fallback if no features found in database -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 class="font-medium text-gray-800 mb-3">Interior Features</h3>
+                    <ul class="space-y-2">
+                      <li class="flex items-center text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <?php echo $vehicle['transmission']; ?>
+                      </li>
+                      <li class="flex items-center text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <?php echo $vehicle['interior_color']; ?> Interior
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-800 mb-3">Exterior Features</h3>
+                    <ul class="space-y-2">
+                      <li class="flex items-center text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <?php echo $vehicle['exterior_color']; ?> Paint
+                      </li>
+                      <li class="flex items-center text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        Alloy Wheels
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              <?php endif; ?>
             </div>
 
             <!-- Specifications Tab -->
@@ -850,6 +959,34 @@ $shareData = json_encode($brochureData);
     </div>
   </div>
 
+  <!-- Full Gallery Modal -->
+  <div id="fullGallery" class="gallery-container">
+    <div class="gallery-content">
+      <button class="gallery-close">×</button>
+      <img id="fullImage" src="" alt="Large vehicle image" class="gallery-image">
+      <div class="gallery-nav">
+        <button id="prevImage" class="prev-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+        <button id="nextImage" class="next-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      <div class="gallery-thumbnails" id="galleryThumbnails">
+        <?php foreach ($images as $index => $image): ?>
+          <img src="<?php echo htmlspecialchars($image['image_path']); ?>"
+            alt="Thumbnail"
+            data-index="<?php echo $index; ?>"
+            class="gallery-thumbnail <?php echo $index === 0 ? 'active' : ''; ?>">
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="toast">
     <div class="toast-icon">
@@ -863,12 +1000,20 @@ $shareData = json_encode($brochureData);
   <?php include 'includes/footer.php'; ?>
 
   <script>
+    // Store all images data for the gallery
+    const allImages = <?php echo json_encode($images); ?>;
+    let currentImageIndex = 0;
+
     // Gallery thumbnails
     const galleryThumbs = document.querySelectorAll('.gallery-thumb');
     const mainImage = document.getElementById('mainImage');
 
     galleryThumbs.forEach(thumb => {
       thumb.addEventListener('click', function() {
+        // Get index from data attribute
+        const index = parseInt(this.getAttribute('data-index'));
+        currentImageIndex = index;
+
         // Remove active class from all thumbnails
         galleryThumbs.forEach(t => t.classList.remove('active'));
 
@@ -879,6 +1024,76 @@ $shareData = json_encode($brochureData);
         mainImage.src = this.src;
       });
     });
+
+    // Open full gallery when clicking on main image
+    mainImage.addEventListener('click', function() {
+      const fullGallery = document.getElementById('fullGallery');
+      const fullImage = document.getElementById('fullImage');
+
+      // Set the current image in the full gallery
+      fullImage.src = allImages[currentImageIndex].image_path;
+
+      // Show the gallery
+      fullGallery.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      // Update thumbnails
+      updateFullGalleryThumbnails(currentImageIndex);
+    });
+
+    // Close full gallery
+    document.querySelector('.gallery-close').addEventListener('click', function() {
+      document.getElementById('fullGallery').classList.remove('show');
+      document.body.style.overflow = '';
+    });
+
+    // Navigate through images in full gallery
+    document.getElementById('prevImage').addEventListener('click', function() {
+      navigateGallery(-1);
+    });
+
+    document.getElementById('nextImage').addEventListener('click', function() {
+      navigateGallery(1);
+    });
+
+    // Handle thumbnail clicks in full gallery
+    document.getElementById('galleryThumbnails').addEventListener('click', function(e) {
+      if (e.target.classList.contains('gallery-thumbnail')) {
+        const index = parseInt(e.target.getAttribute('data-index'));
+        currentImageIndex = index;
+        updateFullGallery();
+      }
+    });
+
+    // Navigate gallery function
+    function navigateGallery(direction) {
+      currentImageIndex = (currentImageIndex + direction + allImages.length) % allImages.length;
+      updateFullGallery();
+    }
+
+    // Update full gallery display
+    function updateFullGallery() {
+      const fullImage = document.getElementById('fullImage');
+      fullImage.src = allImages[currentImageIndex].image_path;
+      updateFullGalleryThumbnails(currentImageIndex);
+    }
+
+    // Update thumbnails in full gallery
+    function updateFullGalleryThumbnails(activeIndex) {
+      const thumbnails = document.querySelectorAll('.gallery-thumbnail');
+      thumbnails.forEach(thumb => {
+        thumb.classList.remove('active');
+        if (parseInt(thumb.getAttribute('data-index')) === activeIndex) {
+          thumb.classList.add('active');
+          // Scroll to make active thumbnail visible
+          thumb.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'center',
+            block: 'nearest'
+          });
+        }
+      });
+    }
 
     // Tabs
     const tabButtons = document.querySelectorAll('.tab-button');
